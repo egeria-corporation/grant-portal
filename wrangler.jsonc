@@ -1,0 +1,43 @@
+// Worker configuration. Bindings intentionally carry no account-specific IDs:
+// the Deploy to Cloudflare button (and `wrangler deploy`) provisions them.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "grant-portal",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "upload_source_maps": true,
+
+  // The SPA is served as static assets. The Worker runs first for every
+  // navigation so it can set a per-request CSP nonce (docs/DECISIONS.md D-004);
+  // hashed build output under /assets and /fonts is served straight from the edge.
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/*", "!/assets/*", "!/fonts/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "grant-portal-db",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "grant-portal-files" }],
+  "kv_namespaces": [{ "binding": "KV" }],
+
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "grant-portal-jobs" }],
+    "consumers": [{ "queue": "grant-portal-jobs", "max_batch_size": 10, "max_retries": 5 }]
+  },
+
+  // */15: dispatcher (schedules, reminders). 13:00 UTC daily: digests, expiry, cleanup.
+  "triggers": { "crons": ["*/15 * * * *", "0 13 * * *"] },
+
+  "vars": {
+    "APP_ENV": "production",
+    "OPENGRANTS_DAILY_LIMIT": "25"
+  }
+}

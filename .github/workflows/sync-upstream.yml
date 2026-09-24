@@ -1,0 +1,69 @@
+name: Sync from upstream
+
+# Opens (or updates) a pull request in your copy of the portal with the latest
+# upstream changes. Merging it redeploys through Workers Builds.
+# Set the repository variable UPSTREAM_REPO (Settings -> Variables) if your
+# copy should follow a different upstream than the default below.
+#
+# GitHub's built-in token cannot push changes to files under .github/workflows.
+# If an update touches workflows, add a secret SYNC_TOKEN (fine-grained token
+# with Contents, Pull requests and Workflows: read/write on this repository).
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO || 'OWNER/grant-portal' }}
+  UPSTREAM_BRANCH: main
+  SYNC_BRANCH: upstream-sync
+
+jobs:
+  sync:
+    # Nothing to sync when running in the upstream repository itself.
+    if: github.repository != (vars.UPSTREAM_REPO || 'OWNER/grant-portal')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch upstream "${UPSTREAM_BRANCH}"
+
+      - name: Check for new commits
+        id: diff
+        run: |
+          behind=$(git rev-list --count "HEAD..upstream/${UPSTREAM_BRANCH}")
+          echo "behind=${behind}" >> "$GITHUB_OUTPUT"
+          echo "Upstream is ${behind} commit(s) ahead."
+
+      - name: Push sync branch
+        if: steps.diff.outputs.behind != '0'
+        run: |
+          git push --force origin "upstream/${UPSTREAM_BRANCH}:refs/heads/${SYNC_BRANCH}"
+
+      - name: Open or update pull request
+        if: steps.diff.outputs.behind != '0'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
+        run: |
+          base="${{ github.event.repository.default_branch }}"
+          existing=$(gh pr list --head "${SYNC_BRANCH}" --base "$base" --state open --json number --jq '.[0].number')
+          body="Automated update from \`${UPSTREAM_REPO}@${UPSTREAM_BRANCH}\` (${{ steps.diff.outputs.behind }} new commit(s)).
+
+          Merging redeploys your portal through Workers Builds. Database migrations only ever add, so this is safe to merge. If you customised files that upstream also changed, resolve conflicts in this PR first."
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --body "$body"
+          else
+            gh pr create --head "${SYNC_BRANCH}" --base "$base" --title "Update from upstream" --body "$body"
+          fi

@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/*
+ * Tailwind exposes semantic tokens only (docs/DECISIONS.md D-008). The default
+ * palette, radii and fonts are removed so a literal color can't sneak in.
+ */
+@theme {
+  --color-*: initial;
+  --color-bg: var(--bg);
+  --color-raised: var(--raised);
+  --color-overlay: var(--overlay);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-border: var(--border);
+  --color-border2: var(--border2);
+  --color-binput: var(--binput);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+  --color-ink: var(--ink);
+  --color-scrim: var(--scrim);
+  --color-skel: var(--skel);
+  --color-acc: var(--acc-solid);
+  --color-acc-hover: var(--acc-solidh);
+  --color-acc-on: var(--acc-on);
+  --color-acc-text: var(--acc-text);
+  --color-acc-focus: var(--acc-focus);
+  --color-acc-ring: var(--acc-ring);
+  --color-acc-50: var(--acc-a50);
+  --color-acc-100: var(--acc-a100);
+  --color-acc-200: var(--acc-a200);
+  --color-acc-300: var(--acc-a300);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-text: var(--ok-text);
+  --color-ok-bd: var(--ok-bd);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-text: var(--warn-text);
+  --color-warn-bd: var(--warn-bd);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-text: var(--danger-text);
+  --color-danger-bd: var(--danger-bd);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-text: var(--info-text);
+  --color-info-bd: var(--info-bd);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --radius-*: initial;
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-card: var(--r-card);
+  --radius-btn: var(--r-btn);
+  --radius-pill: var(--r-pill);
+  --radius-av: var(--r-av);
+  --radius-full: 9999px;
+
+  --font-*: initial;
+  --font-sans: var(--font-ui);
+  --font-code: var(--font-mono);
+  --font-display: var(--font-head);
+
+  --shadow-*: initial;
+  --shadow-panel: var(--shadow);
+  --shadow-pop: var(--pop);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  :focus-visible {
+    outline: 2px solid var(--acc-focus);
+    outline-offset: 2px;
+  }
+  .hd {
+    font-family: var(--font-head);
+    font-weight: var(--head-w);
+    letter-spacing: var(--head-ls);
+  }
+}

@@ -1,0 +1,67 @@
+/*
+ * Default semantic tokens (docs/design/boards/01-foundations.html: "Custom"
+ * firm, neutral temperature, Soft radius, sans headings). These apply before a
+ * brand is configured; /brand/theme.css (M2) overrides them per consultancy.
+ * Components must use these variables only — never literal colors.
+ */
+:root {
+  color-scheme: light;
+  --font-ui: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-head: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --head-w: 600;
+  --head-ls: -0.022em;
+
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-card: 12px; --r-btn: 8px; --r-pill: 999px; --r-av: 999px;
+
+  --row-h: 52px; --cell-x: 16px; --fs-row: 14px; --gap-row: 12px;
+
+  --bg: #f9f9f9; --raised: #fdfdfd; --overlay: #fdfdfd; --sunken: #f4f4f4; --hover: #f4f4f4; --active: #ececec;
+  --border: #e4e4e4; --border2: #d9d9d9; --text: #1d1d1d; --text2: #606060; --text3: #6e6e6e; --binput: #929292;
+  --ink: #121212; --scrim: rgba(18, 18, 18, 0.32); --skel: #ececec;
+  --shadow: 0 1px 2px rgba(29, 29, 29, 0.04), 0 0 0 1px rgba(29, 29, 29, 0.02);
+  --pop: 0 16px 40px -12px rgba(18, 18, 18, 0.22), 0 4px 12px -4px rgba(18, 18, 18, 0.08), 0 0 0 1px rgba(18, 18, 18, 0.06);
+
+  --acc-brand: #5b4fd6; --acc-a50: #f5f6ff; --acc-a100: #e9ebfe; --acc-a200: #d6d9fe; --acc-a300: #b9befc;
+  --acc-solid: #5b4fd6; --acc-solidh: #4f3ec5; --acc-on: #ffffff; --acc-text: #5b4fd6; --acc-focus: #5b4fd6;
+  --acc-ring: rgba(91, 79, 214, 0.28);
+
+  --ok: #20a04e; --ok-bg: #e0f7e4; --ok-text: #006e30; --ok-bd: #b1dfb9;
+  --warn: #f5a420; --warn-bg: #fff0de; --warn-text: #86580f; --warn-bd: #eeca9f;
+  --danger: #ce5249; --danger-bg: #feebe8; --danger-text: #a7463e; --danger-bd: #fcc0b8;
+  --info: #1a83db; --info-bg: #e6f2fe; --info-text: #1666aa; --info-bd: #afd5fe;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #121212; --raised: #1d1d1d; --overlay: #262626; --sunken: #0c0c0c; --hover: #262626; --active: #313131;
+    --border: #2b2b2b; --border2: #383838; --text: #f4f4f4; --text2: #bebebe; --text3: #8e8e8e; --binput: #696969;
+    --ink: #0c0c0c; --scrim: rgba(12, 12, 12, 0.6); --skel: #262626;
+    --shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+    --pop: 0 20px 48px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --acc-a50: #1e1f36; --acc-a100: #26274a; --acc-a200: #333465; --acc-a300: #4e4e96;
+    --acc-solid: #5b4fd6; --acc-solidh: #655ce4; --acc-on: #ffffff; --acc-text: #766ff9; --acc-focus: #766ff9;
+    --acc-ring: rgba(118, 111, 249, 0.38);
+    --ok: #4cb86a; --ok-bg: #1a321f; --ok-text: #89d298; --ok-bd: #295233;
+    --warn: #f8ac3d; --warn-bg: #392710; --warn-text: #eab26b; --warn-bd: #5f4117;
+    --danger: #e66f64; --danger-bg: #3f221f; --danger-text: #fda297; --danger-bd: #683833;
+    --info: #4ba3f7; --info-bg: #192d41; --info-text: #8bc3fd; --info-bd: #284a6c;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #121212; --raised: #1d1d1d; --overlay: #262626; --sunken: #0c0c0c; --hover: #262626; --active: #313131;
+  --border: #2b2b2b; --border2: #383838; --text: #f4f4f4; --text2: #bebebe; --text3: #8e8e8e; --binput: #696969;
+  --ink: #0c0c0c; --scrim: rgba(12, 12, 12, 0.6); --skel: #262626;
+  --shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --pop: 0 20px 48px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --acc-a50: #1e1f36; --acc-a100: #26274a; --acc-a200: #333465; --acc-a300: #4e4e96;
+  --acc-solid: #5b4fd6; --acc-solidh: #655ce4; --acc-on: #ffffff; --acc-text: #766ff9; --acc-focus: #766ff9;
+  --acc-ring: rgba(118, 111, 249, 0.38);
+  --ok: #4cb86a; --ok-bg: #1a321f; --ok-text: #89d298; --ok-bd: #295233;
+  --warn: #f8ac3d; --warn-bg: #392710; --warn-text: #eab26b; --warn-bd: #5f4117;
+  --danger: #e66f64; --danger-bg: #3f221f; --danger-text: #fda297; --danger-bd: #683833;
+  --info: #4ba3f7; --info-bg: #192d41; --info-text: #8bc3fd; --info-bd: #284a6c;
+}

@@ -1,0 +1,78 @@
+{
+  "name": "grant-portal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source, white-label client portal for grant consultants. Deploys to Cloudflare Workers.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run db:migrate:local && vite dev",
+    "build": "vite build",
+    "preview": "npm run build && vite preview",
+    "deploy": "npm run db:migrate && wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/d1-migrate.mjs --remote",
+    "db:migrate:local": "node scripts/d1-migrate.mjs --local",
+    "cf-typegen": "wrangler types --strict-vars=false",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "cloudflare": {
+    "bindings": {
+      "RESEND_API_KEY": {
+        "description": "Create a free key at [resend.com/api-keys](https://resend.com/api-keys). Used for sign-in links and client emails."
+      },
+      "SESSION_SECRET": {
+        "description": "Any long random string. Run `openssl rand -hex 32`. **Leave blank** to have the portal generate one on first boot (you'll be reminded to move it to a secret)."
+      },
+      "OPENGRANTS_API_KEY": {
+        "description": "**Optional.** Adds grant search, matching, and funding alerts. Get a key at [ops.opengrants.io/api-docs](https://ops.opengrants.io/api-docs)."
+      }
+    }
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.103.2",
+    "@tanstack/react-router": "^1.170.39",
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.9",
+    "lucide-react": "^1.48.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.59.0",
+    "@cloudflare/vitest-plugin": "^1.2.6",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/router-plugin": "^1.168.40",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/runner": "~4.1.11",
+    "@vitest/snapshot": "~4.1.11",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.1",
+    "vitest": "~4.1.11",
+    "wrangler": "^4.138.0"
+  },
+  "allowScripts": {
+    "workerd": true,
+    "esbuild": true
+  }
+}

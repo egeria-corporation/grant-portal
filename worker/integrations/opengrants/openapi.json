@@ -1,0 +1,173 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "OpenGrants API",
+    "description": "RESTful API for accessing grants, government contracts, and funding organization data.",
+    "version": "1.2.0",
+    "contact": { "name": "OpenGrants", "url": "https://opengrants.io" }
+  },
+  "servers": [{ "url": "https://ops.opengrants.io/functions/v1", "description": "Production" }],
+  "paths": {
+    "/grants-api": {
+      "get": {
+        "summary": "List grants",
+        "operationId": "listGrants",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "search_mode", "in": "query", "description": "Ranking strategy. semantic/hybrid require a search term and enable vector relevance.", "schema": { "type": "string", "enum": ["keyword", "semantic", "hybrid"], "default": "keyword" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["open", "posted", "closed", "forecasted"] } },
+          { "name": "opportunity_type", "in": "query", "description": "'open' (default) returns applyable opportunities only. 'awarded' returns previously funded projects (research mode — not open for application; deadline is null, see project_end_date). 'all' returns both.", "schema": { "type": "string", "enum": ["open", "awarded", "all"], "default": "open" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "states", "in": "query", "description": "Filter by US location: comma-separated 2-letter USPS codes, e.g. CA,NY. State-specific only unless include_national=true.", "schema": { "type": "string" } },
+          { "name": "include_national", "in": "query", "description": "When filtering by states, also include national / all-states opportunities.", "schema": { "type": "boolean", "default": false } },
+          { "name": "geography", "in": "query", "deprecated": true, "description": "Legacy free-text location filter (best-effort, state-canonicalized on hybrid). Prefer 'states'.", "schema": { "type": "string" } },
+          { "name": "min_amount", "in": "query", "schema": { "type": "integer", "minimum": 0 } },
+          { "name": "max_amount", "in": "query", "schema": { "type": "integer", "minimum": 0 } },
+          { "name": "deadline_after", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "deadline_before", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "posted_after", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "sort_by", "in": "query", "schema": { "type": "string", "enum": ["created_at", "deadline_date", "amount_min", "amount_max", "title"], "default": "created_at" } },
+          { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } },
+          { "name": "count_only", "in": "query", "description": "Return only { total } for the filter set.", "schema": { "type": "boolean", "default": false } },
+          { "name": "include_archived", "in": "query", "schema": { "type": "boolean", "default": false } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0, "maximum": 10000 } }
+        ],
+        "responses": { "200": { "description": "Paginated grants list" } },
+        "security": [{ "apiKey": [] }]
+      }
+    },
+    "/contracts-api": {
+      "get": {
+        "summary": "List contracts",
+        "operationId": "listContracts",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "search_mode", "in": "query", "description": "Ranking strategy. semantic/hybrid require a search term and enable vector relevance.", "schema": { "type": "string", "enum": ["keyword", "semantic", "hybrid"], "default": "keyword" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "opportunity_type", "in": "query", "description": "'open' (default) returns active solicitations only. 'awarded' returns already-awarded contracts (research mode). 'all' returns both.", "schema": { "type": "string", "enum": ["open", "awarded", "all"], "default": "open" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "naics", "in": "query", "schema": { "type": "string" } },
+          { "name": "set_aside", "in": "query", "schema": { "type": "string" } },
+          { "name": "states", "in": "query", "description": "Filter by US location: comma-separated 2-letter USPS codes, e.g. CA,NY. State-specific only unless include_national=true.", "schema": { "type": "string" } },
+          { "name": "include_national", "in": "query", "description": "When filtering by states, also include national / all-states opportunities.", "schema": { "type": "boolean", "default": false } },
+          { "name": "geography", "in": "query", "deprecated": true, "description": "Legacy free-text location filter (best-effort, state-canonicalized on hybrid). Prefer 'states'.", "schema": { "type": "string" } },
+          { "name": "min_amount", "in": "query", "schema": { "type": "integer", "minimum": 0 } },
+          { "name": "max_amount", "in": "query", "schema": { "type": "integer", "minimum": 0 } },
+          { "name": "deadline_after", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "deadline_before", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "posted_after", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "sort_by", "in": "query", "schema": { "type": "string", "enum": ["created_at", "deadline_date", "amount_min", "amount_max", "title"], "default": "created_at" } },
+          { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } },
+          { "name": "count_only", "in": "query", "description": "Return only { total } for the filter set.", "schema": { "type": "boolean", "default": false } },
+          { "name": "include_archived", "in": "query", "schema": { "type": "boolean", "default": false } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0, "maximum": 10000 } }
+        ],
+        "responses": { "200": { "description": "Paginated contracts list" } },
+        "security": [{ "apiKey": [] }]
+      }
+    },
+    "/funders-api": {
+      "get": {
+        "summary": "List funders",
+        "operationId": "listFunders",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": { "200": { "description": "Paginated funders list" } },
+        "security": [{ "apiKey": [] }]
+      }
+    },
+    "/grants-api/{id}": {
+      "get": {
+        "summary": "Get a grant by ID",
+        "operationId": "getGrant",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "One grant" }, "404": { "description": "Not found" } },
+        "security": [{ "apiKey": [] }]
+      }
+    },
+    "/contracts-api/{id}": {
+      "get": {
+        "summary": "Get a contract by ID",
+        "operationId": "getContract",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "One contract" }, "404": { "description": "Not found" } },
+        "security": [{ "apiKey": [] }]
+      }
+    },
+    "/funders-api/{id}": {
+      "get": {
+        "summary": "Get a funder by ID",
+        "operationId": "getFunder",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "One funder" }, "404": { "description": "Not found" } },
+        "security": [{ "apiKey": [] }]
+      }
+    },
+    "/match-grants-api": {
+      "post": {
+        "summary": "Match grants to an organization profile",
+        "operationId": "matchGrants",
+        "description": "Send an organization profile and receive a ranked list of OPEN grants, each with a 0-100 match_score and a why_it_fits explanation. Requires a Pro or Developer plan. Grant scoring uses: mission + sector + geography (semantic + geo eligibility), annual_budget_usd (award-size fit), and applicant_type/is_501c3 (eligibility signal from the grant text). naics_code and certifications are accepted for parity with the stored org profile but do NOT affect grant scoring — they are contract/set-aside concepts. Returns grants only.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["profile"],
+            "properties": {
+              "profile": {
+                "type": "object",
+                "required": ["mission"],
+                "properties": {
+                  "mission": { "type": "string", "description": "Required. What your organization does." },
+                  "sector": { "type": "string" },
+                  "geography": { "type": "string", "description": "Applicant location; canonicalized to US states / national." },
+                  "applicant_type": { "type": "string", "enum": ["nonprofit", "for_profit", "municipality", "tribal", "individual", "academic"] },
+                  "is_501c3": { "type": "boolean" },
+                  "annual_budget_usd": { "type": "integer", "minimum": 0 },
+                  "naics_code": { "type": "string", "description": "Accepted for profile parity; not used for grant scoring." },
+                  "certifications": { "type": "array", "items": { "type": "string" }, "description": "Accepted for profile parity; not used for grant scoring." },
+                  "year_founded": { "type": "integer" }
+                }
+              },
+              "focus_keywords": { "type": "array", "items": { "type": "string" }, "description": "Optional keywords to boost topical matches." },
+              "limit": { "type": "integer", "default": 10, "minimum": 1, "maximum": 25 }
+            }
+          } } }
+        },
+        "responses": {
+          "200": { "description": "Ranked grant matches", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "count": { "type": "integer" },
+              "matches": { "type": "array", "items": { "type": "object", "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "title": { "type": "string" },
+                "funder": { "type": "string", "nullable": true },
+                "match_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+                "why_it_fits": { "type": "string" },
+                "award_min_usd": { "type": "integer", "nullable": true },
+                "award_max_usd": { "type": "integer", "nullable": true },
+                "deadline": { "type": "string", "format": "date", "nullable": true },
+                "url": { "type": "string", "nullable": true }
+              } } }
+            }
+          } } } },
+          "401": { "description": "Invalid API key" },
+          "403": { "description": "Plan does not include matching (NO_API_ACCESS) — requires Pro or Developer" },
+          "429": { "description": "Rate limit exceeded" }
+        },
+        "security": [{ "apiKey": [] }]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": { "type": "http", "scheme": "bearer", "description": "API key from the OpenGrants Developer portal" }
+    }
+  }
+}

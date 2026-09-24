@@ -1,0 +1,6 @@
+# Each line becomes a field on the Deploy to Cloudflare setup page (max three, spec §3.2).
+# Help text for each field lives in package.json -> cloudflare.bindings.
+# For local development: copy to .dev.vars and fill in what you have.
+RESEND_API_KEY=         # Required for email. Sends sign-in links and client emails.
+SESSION_SECRET=         # Optional. 32+ random bytes (openssl rand -hex 32). Generated on first boot if blank.
+OPENGRANTS_API_KEY=     # Optional. Turns on funding discovery and alerts.
