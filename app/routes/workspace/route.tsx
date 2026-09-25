@@ -31,6 +31,7 @@ function Workspace() {
 
   const nav = [
     { to: '/workspace', label: 'Home' },
+    ...(user.role === 'owner' ? [{ to: '/workspace/settings/brand', label: 'Brand' }] : []),
     { to: '/workspace/security', label: 'Security' },
   ];
   return (

@@ -39,16 +39,16 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [ ] **Manual:** claim a real deployment by email (Resend account address) and by setup code from Workers Logs (owner: you — steps in `docs/deploy.md`)
 
 ## M2 — Theming engine & design system
-- [ ] Brand settings in D1 → `/brand/theme.css` (KV + edge cache, purge on change); replaces M1's CSSOM accent (app/lib/session.ts)
-- [ ] Logo (light/dark) + favicon upload in the wizard's Brand step and Settings → Brand (carried from M1, D-031)
-- [ ] Dynamic favicon, manifest, OG image
-- [ ] Accent ramp generator (port of design `calc`) + WCAG AA checks + nudge; unit tests across light/dark extremes
-- [ ] Radius/density presets, neutral temperature, heading font presets, self-hosted fonts, WOFF2 upload
-- [ ] Light/dark modes
-- [ ] `app/ui/` components per `docs/design/boards`
-- [ ] `/_dev/kitchen-sink` (dev only) × Northwind/Bloom/Evergreen × light/dark
-- [ ] SVG logo sanitization
-- [ ] Automated contrast test; branding grep still green
+- [x] Brand settings in D1 → `/brand/theme.css` (KV + edge cache; versioned URLs make "purge on change" automatic) (D-035)
+- [x] Logo (light/dark), mark, favicon, OG image and heading-font upload in the wizard's Brand step and Settings → Brand (D-037)
+- [x] Favicon (uploaded or generated initials), manifest, OG image (uploaded or generated accent card); brand written into `<head>` server-side
+- [x] Accent ramp generator (port of design `calc`) + WCAG AA checks + nudge; unit tests across light/dark extremes; exact parity with the design's token table (D-034)
+- [x] Radius/density presets, neutral temperature, heading font presets, self-hosted fonts, WOFF2 upload (D-040)
+- [x] Light/dark modes with a per-user toggle, rendered server-side from a cookie (D-041)
+- [x] `app/ui/` components per `docs/design/boards` (controls, display, documents, lists) over the ported component layer (D-038)
+- [x] `/_dev/kitchen-sink` (dev only) × Northwind/Bloom/Evergreen × light/dark (D-042)
+- [x] SVG logo sanitization (D-036)
+- [x] Automated contrast tests: unit (tokens, every preset combination) + axe on every component in E2E; branding grep still green; literal-color guard
 
 ## M3 — Clients, documents, deliverables, messages
 - [ ] Clients CRUD, profile, EIN AES-GCM (masked, reveal audited), statuses, staff assignments

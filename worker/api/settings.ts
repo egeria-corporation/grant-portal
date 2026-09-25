@@ -4,10 +4,13 @@
  * security policy. Everything here is Owner-only; security-sensitive changes
  * also need a recent step-up.
  */
-import { checkAccent } from '@shared/contrast';
+import { checkAccent } from '@shared/theme/contrast';
+import { DENSITIES, HEADINGS, NEUTRALS, RADII } from '@shared/theme/tokens';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { authOf, requireOwner, requireStepUp } from '../auth/guards';
+import { ASSET_SLOTS, isSlot, removeAsset, SLOT_RULES, storeAsset } from '../brand/assets';
+import { assetUrl, getBrandState } from '../brand/state';
 import { emailProvider, sender } from '../email';
 import { EmailNotConfiguredError, EmailProviderError, type DnsRecord } from '../email/provider';
 import type { AppBindings, AppEnv } from '../env';
@@ -82,6 +85,12 @@ export const settingsApi = new Hono<AppBindings>()
     });
   })
 
+  /**
+   * Brand basics and theme choices (spec §8.1). Partial updates merge into
+   * what's stored, so the wizard can send just the fields it shows. Any
+   * accent is accepted: the ramp nudges it to WCAG AA and the response says
+   * whether it did.
+   */
   .put('/brand', async (c) => {
     const body = await parseJson(
       c,
@@ -90,14 +99,61 @@ export const settingsApi = new Hono<AppBindings>()
         shortName: z.string().trim().max(24).optional(),
         accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
         welcome: z.string().trim().max(280).optional(),
+        neutral: z.enum(NEUTRALS).optional(),
+        radius: z.enum(RADII).optional(),
+        density: z.enum(DENSITIES).optional(),
+        heading: z.enum(HEADINGS).optional(),
+        poweredBy: z.boolean().optional(),
       }),
     );
+    const current = await getSetting(c.env, 'brand');
     const check = checkAccent(body.accent);
-    if (!check?.passesAA) throw new HttpError(422, 'accent_contrast', { ratio: check?.ratio ?? 0 });
-    await setSetting(c.env, 'brand', { ...body, accent: body.accent.toLowerCase() });
+    const next = {
+      neutral: 'neutral' as const,
+      radius: 'soft' as const,
+      density: 'comfortable' as const,
+      heading: 'sans' as const,
+      poweredBy: false,
+      ...current,
+      ...Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined)),
+      firmName: body.firmName,
+      accent: body.accent.toLowerCase(),
+    };
+    await setSetting(c.env, 'brand', next);
     await c.env.DB.prepare("UPDATE orgs SET name = ? WHERE id = 'org_default'").bind(body.firmName).run();
     await audit(c, { action: 'settings.updated', target: 'brand' });
-    return c.json({ ok: true, contrast: check });
+    return c.json({ ok: true, contrast: check, version: (await getBrandState(c.env)).version });
+  })
+
+  .get('/brand', async (c) => {
+    const [brand, state] = await Promise.all([getSetting(c.env, 'brand'), getBrandState(c.env)]);
+    const assets = Object.fromEntries(
+      ASSET_SLOTS.map((slot) => {
+        const a = state.assets[slot];
+        return [slot, a ? { url: assetUrl(state, slot), mime: a.mime, size: a.size, updatedAt: a.updatedAt } : null];
+      }),
+    );
+    return c.json({ brand, assets, version: state.version, slots: SLOT_RULES });
+  })
+
+  /** Raw file body; the type is detected from the bytes (worker/brand/assets.ts). */
+  .put('/brand/assets/:slot', async (c) => {
+    const slot = c.req.param('slot');
+    if (!isSlot(slot)) throw new HttpError(404, 'not_found');
+    const declared = Number(c.req.header('Content-Length') ?? '0');
+    if (declared > SLOT_RULES[slot].maxBytes) throw new HttpError(413, 'file_too_large', { maxBytes: SLOT_RULES[slot].maxBytes });
+    const out = await storeAsset(c.env, slot, await c.req.arrayBuffer());
+    await audit(c, { action: 'settings.updated', target: `brand.asset.${slot}`, meta: { mime: out.mime, size: out.size } });
+    const state = await getBrandState(c.env);
+    return c.json({ ok: true, url: assetUrl(state, slot), version: state.version }, 201);
+  })
+
+  .delete('/brand/assets/:slot', async (c) => {
+    const slot = c.req.param('slot');
+    if (!isSlot(slot)) throw new HttpError(404, 'not_found');
+    if (!(await removeAsset(c.env, slot))) throw new HttpError(404, 'not_found');
+    await audit(c, { action: 'settings.updated', target: `brand.asset.${slot}.removed` });
+    return c.json({ ok: true, version: (await getBrandState(c.env)).version });
   })
 
   .get('/email', async (c) => {
