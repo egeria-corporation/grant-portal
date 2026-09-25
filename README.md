@@ -2,9 +2,9 @@
 
 An open-source, white-label client portal for grant consultants. It runs in your own Cloudflare account and shows your brand, not ours.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/OWNER/grant-portal)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/egeria-corporation/grant-portal)
 
-<!-- TODO(release): replace OWNER/grant-portal above with the canonical repository. -->
+<!-- TODO(release): replace egeria-corporation/grant-portal above with the canonical repository. -->
 
 > **Status:** early development (v0.1 in progress). Milestone plan: [`docs/PLAN.md`](docs/PLAN.md).
 

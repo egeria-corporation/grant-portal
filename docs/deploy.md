@@ -18,7 +18,7 @@ The full timed walkthrough lands with M6. This page covers what exists today and
 
 Run on a Cloudflare account that has **no** existing `grant-portal-*` resources, ideally a fresh one. Start a stopwatch at step 1.
 
-1. Push this repository to a **public** GitHub repo (the button does not support private repos), and replace `OWNER/grant-portal` in `README.md` with it.
+1. Push this repository to a **public** GitHub repo (the button does not support private repos), and replace `egeria-corporation/grant-portal` in `README.md` with it.
 2. Open `https://deploy.workers.cloudflare.com/?url=https://github.com/<you>/<repo>` in a private window.
 3. Sign in to Cloudflare and authorise GitHub.
 4. On the setup page, check:

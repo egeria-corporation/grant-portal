@@ -19,14 +19,14 @@ permissions:
   pull-requests: write
 
 env:
-  UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO || 'OWNER/grant-portal' }}
+  UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO || 'egeria-corporation/grant-portal' }}
   UPSTREAM_BRANCH: main
   SYNC_BRANCH: upstream-sync
 
 jobs:
   sync:
     # Nothing to sync when running in the upstream repository itself.
-    if: github.repository != (vars.UPSTREAM_REPO || 'OWNER/grant-portal')
+    if: github.repository != (vars.UPSTREAM_REPO || 'egeria-corporation/grant-portal')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
