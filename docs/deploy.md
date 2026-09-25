@@ -28,21 +28,42 @@ Run on a Cloudflare account that has **no** existing `grant-portal-*` resources,
    - [ ] Record whether the page accepts a blank `SESSION_SECRET` (spec §16 open question 3). If it refuses, paste `openssl rand -hex 32` and note it in the report.
 6. Click **Create and deploy**. Watch the build log:
    - [ ] `npm run build` succeeds (no secrets needed);
-   - [ ] `npm run deploy` prints the migrations table with `0000_init.sql` and `0001_audit_log_append_only.sql` ✅;
+   - [ ] `npm run deploy` prints the migrations table with `0000_init.sql`, `0001_audit_log_append_only.sql` and `0002_auth.sql` ✅;
    - [ ] `wrangler deploy` succeeds and prints a `*.workers.dev` URL.
 7. Open `https://<worker>.<subdomain>.workers.dev/healthz`:
    - [ ] `{"status":"ok", …, "checks":{"db":"ok"}}` with HTTP 200.
-8. Open the root URL:
-   - [ ] "It works" page, "All systems ready";
-   - [ ] no product name in the tab title or page;
-   - [ ] DevTools → Network → document response has a `Content-Security-Policy` header with a `nonce-…` and no console CSP errors.
+8. Open the root URL (first-run wizard, M1):
+   - [ ] you land on **Claim this portal**; no product name in the tab title or page;
+   - [ ] DevTools → Network → document response has a `Content-Security-Policy` header with a `nonce-…` and no console CSP errors;
+   - [ ] enter the email you used to sign up to Resend → **Email me a setup link**. The email comes from `onboarding@resend.dev` (see "First-run wizard" below). Open the link → **Continue**;
+   - [ ] if no email arrives: **Use the setup code instead**. Dashboard → Workers & Pages → your Worker → **Logs** → find `Portal setup code: XXXX-XXXX-XXXX`;
+   - [ ] finish Brand; skip the optional steps; **Load a demo client**; **Your portal is live** → **Go to your workspace**.
 9. Dashboard → Workers → your worker → Settings:
    - [ ] bindings DB, FILES, KV, JOBS, ASSETS present; cron triggers listed; queue consumer attached.
 10. Dashboard → Storage & Databases → KV → your namespace:
     - [ ] keys `sys:genkey:SESSION_SECRET:…` and `sys:genkey:DATA_ENCRYPTION_KEY:…` exist (generated on the first request because the secrets were blank).
 11. Push a trivial commit to `main` in the copied repo:
     - [ ] Workers Builds redeploys; migrations report "No migrations to apply".
-12. Stop the stopwatch at step 8. Record the time and anything that needed a manual fix.
+12. Stop the stopwatch when the workspace loads in step 8. Record the time and anything that needed a manual fix.
+
+## First-run wizard
+
+| Step | What it does | Needs |
+|---|---|---|
+| 1. Claim | Makes you the Owner. First person to finish wins; the step then locks. | The Resend account's email, **or** the setup code from the Worker logs |
+| 2. Brand | Firm name, accent color (checked against WCAG AA), welcome line, live preview. Logo, fonts and favicon come in Settings → Brand (M2). | — |
+| 3. Email sender | Creates your domain in Resend and lists the DNS records (DKIM, SPF, MX, plus a starter DMARC `p=none`). Checks every 15 s. With a Cloudflare API token it can create the records for you. | Optional |
+| 4. Custom domain | With a Cloudflare API token, attaches the domain to the Worker. Without one, shows the dashboard steps. | Optional |
+| 5. Funding discovery | Stores an OpenGrants key (encrypted). Not validated here, because every call spends the daily request budget. | Optional |
+| 6. Invite team | Emails invites once the sending domain is verified; before that, gives you a single-use link valid for 72 hours. | Optional |
+| 7. First client | Adds a client (with an invite link for its contact) or loads a demo client that never sends email. | Optional |
+| 8. Live | Client sign-in URL, a paste-ready invite email, and the remaining optional tasks. | — |
+
+**Why the claim email comes from `onboarding@resend.dev`.** Resend's shared test sender only delivers to the email address that owns the Resend account. The setup email always goes out from it, so only the person who holds the Resend account (the person who pasted the key) can receive a claim link, even if the account already has verified domains. Anyone else who finds a fresh `*.workers.dev` URL can't claim it by email. The fallback is the setup code in the Worker logs, and only people with access to your Cloudflare account can read those.
+
+**Before your sending domain is verified** (spec §3.4): you and your team can sign in (the Owner through the Resend account email, team members through their invite link and then a passkey). You can build clients. Emailing clients and team members is blocked, with a banner; single-use copy links work instead.
+
+**Cloudflare API token (optional).** Create one under *My Profile → API Tokens* with **Zone · DNS · Edit** and **Account · Workers Scripts · Edit**, limited to your zone and account. It's stored encrypted with the data key. Remove it in Settings once setup is done.
 
 ## Updates from upstream
 

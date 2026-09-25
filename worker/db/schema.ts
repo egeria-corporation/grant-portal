@@ -121,8 +121,45 @@ export const sessions = sqliteTable(
     ipHash: text('ip_hash'),
     uaLabel: text('ua_label'),
     revokedAt: integer('revoked_at'),
+    /** Handle shown in session lists and used to revoke one session (`ses_…`). Never the cookie value. */
+    publicId: text('public_id'),
   },
-  (t) => [index('sessions_user_idx').on(t.userId)],
+  (t) => [index('sessions_user_idx').on(t.userId), uniqueIndex('sessions_public_id_uq').on(t.publicId)],
+);
+
+/**
+ * Browsers a user has signed in from, identified by a long-lived random
+ * `__Host-device` cookie (stored hashed). A sign-in from an unknown device
+ * triggers the new-device email (spec §7.7).
+ */
+export const userDevices = sqliteTable(
+  'user_devices',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceHash: text('device_hash').notNull(),
+    uaLabel: text('ua_label'),
+    createdAt: createdAt(),
+    lastSeenAt: integer('last_seen_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.deviceHash] })],
+);
+
+/** Single-use WebAuthn challenges. D1 (not KV) so consumption is atomic. */
+export const webauthnChallenges = sqliteTable(
+  'webauthn_challenges',
+  {
+    id: id(),
+    challenge: text('challenge').notNull(),
+    purpose: text('purpose', { enum: ['register', 'authenticate'] }).notNull(),
+    /** Set for registration (the signed-in user); null for usernameless sign-in. */
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: integer('expires_at').notNull(),
+    usedAt: integer('used_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('webauthn_challenges_expires_idx').on(t.expiresAt)],
 );
 
 export const clients = sqliteTable(

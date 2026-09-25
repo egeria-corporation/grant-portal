@@ -3,16 +3,26 @@
  *
  *   /healthz        liveness/readiness
  *   /api/*          JSON API (authz middleware → handlers)
- *   /auth/*         magic links, sessions, passkeys            (M1)
+ *   /auth/*         POST: magic links, codes, passkeys, sign-out; GET: SPA pages
  *   /f/*            authorised file downloads                  (M3)
  *   /brand/*        theme.css, favicon, manifest, OG image     (M2)
  *   /webhooks/*     Resend delivery events                     (M4)
  *   everything else SPA HTML with a per-request CSP nonce, or a static file
  */
 import { Hono } from 'hono';
+import { me, passkeysApi, portal, sessions } from './api/account';
+import { clients, demo } from './api/clients';
 import { health } from './api/health';
+import { devApi, publicApi } from './api/public';
+import { settingsApi } from './api/settings';
+import { setup } from './api/setup';
 import { system } from './api/system';
+import { team } from './api/team';
+import { csrf } from './auth/csrf';
+import { auth } from './auth/routes';
+import { loadSession } from './auth/session';
 import type { AppBindings, AppEnv } from './env';
+import { HttpError } from './lib/http';
 import { serveAsset } from './html';
 import { handleQueue, handleScheduled } from './jobs';
 import { GENERATED_SECRET_NAMES, resolveSecret, SecretUnavailableError } from './lib/secrets';
@@ -46,16 +56,37 @@ app.use('*', async (c, next) => {
   c.res = res;
 });
 
+app.use('*', csrf);
+app.use('/api/*', loadSession);
+app.use('/auth/*', loadSession);
+
 app.route('/healthz', health);
+app.route('/auth', auth);
+app.route('/api/public', publicApi);
+app.route('/api/dev', devApi);
+app.route('/api/setup', setup);
+app.route('/api/me', me);
+app.route('/api/sessions', sessions);
+app.route('/api/passkeys', passkeysApi);
+app.route('/api/settings', settingsApi);
+app.route('/api/team', team);
+app.route('/api/clients', clients);
+app.route('/api/demo', demo);
+app.route('/api/portal', portal);
 app.route('/api/system', system);
 
 const notFound = (c: { json: (body: unknown, status: 404) => Response }) => c.json({ error: 'not_found' }, 404);
-for (const prefix of ['/api/*', '/auth/*', '/f/*', '/brand/*', '/webhooks/*']) app.all(prefix, notFound);
+for (const prefix of ['/api/*', '/f/*', '/brand/*', '/webhooks/*']) app.all(prefix, notFound);
 
 app.on(['GET', 'HEAD'], '*', (c) => serveAsset(c.req.raw, c.env, c.get('nonce')));
 app.all('*', (c) => c.json({ error: 'method_not_allowed' }, 405));
 
 app.onError((err, c) => {
+  if (err instanceof HttpError) {
+    const headers: Record<string, string> = {};
+    if (err.status === 429 && typeof err.extra.retryAfterSec === 'number') headers['Retry-After'] = String(err.extra.retryAfterSec);
+    return c.json({ error: err.code, ...err.extra }, err.status, headers);
+  }
   if (err instanceof SecretUnavailableError) {
     return c.json({ error: 'initialising' }, 503, { 'Retry-After': '5' });
   }

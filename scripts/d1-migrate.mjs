@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Applies D1 migrations to the database bound as `DB`.
 //
-// Usage: node scripts/d1-migrate.mjs --remote | --local
+// Usage: node scripts/d1-migrate.mjs --remote | --local [--persist-to <dir>]
 //
 // On a first CLI deploy the database does not exist yet (`wrangler deploy`
 // would provision it, but migrations run before deploy). When wrangler reports
@@ -12,6 +12,9 @@ import { readFileSync } from 'node:fs';
 import { stripJsonc } from './jsonc.mjs';
 
 const target = process.argv.includes('--local') ? '--local' : '--remote';
+// Local state directory (E2E uses its own so every run starts from a fresh deploy).
+const persistIdx = process.argv.indexOf('--persist-to');
+const persist = target === '--local' && persistIdx > 0 ? ['--persist-to', process.argv[persistIdx + 1]] : [];
 
 function wrangler(args) {
   const res = spawnSync('npx', ['wrangler', ...args], {
@@ -31,7 +34,7 @@ function databaseName() {
   return db.database_name;
 }
 
-const apply = ['d1', 'migrations', 'apply', 'DB', target];
+const apply = ['d1', 'migrations', 'apply', 'DB', target, ...persist];
 let res = wrangler(apply);
 if (res.code !== 0 && target === '--remote' && /Couldn't find (an auto-provisioned )?(a )?D1 DB/i.test(res.out)) {
   const name = databaseName();

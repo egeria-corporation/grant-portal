@@ -10,33 +10,146 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PortalRouteRouteImport } from './routes/portal/route'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as SigninRouteImport } from './routes/signin'
+import { Route as WorkspaceRouteRouteImport } from './routes/workspace/route'
+import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
+import { Route as PortalIndexRouteImport } from './routes/portal/index'
+import { Route as PortalSecurityRouteImport } from './routes/portal/security'
+import { Route as WorkspaceIndexRouteImport } from './routes/workspace/index'
+import { Route as WorkspaceSecurityRouteImport } from './routes/workspace/security'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalRouteRoute = PortalRouteRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceRouteRoute = WorkspaceRouteRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthVerifyRoute = AuthVerifyRouteImport.update({
+  id: '/auth/verify',
+  path: '/auth/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalSecurityRoute = PortalSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const WorkspaceIndexRoute = WorkspaceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const WorkspaceSecurityRoute = WorkspaceSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/portal': typeof PortalRouteRouteWithChildren
+  '/workspace': typeof WorkspaceRouteRouteWithChildren
+  '/setup': typeof SetupRoute
+  '/signin': typeof SigninRoute
+  '/auth/verify': typeof AuthVerifyRoute
+  '/portal/security': typeof PortalSecurityRoute
+  '/workspace/security': typeof WorkspaceSecurityRoute
+  '/portal/': typeof PortalIndexRoute
+  '/workspace/': typeof WorkspaceIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/setup': typeof SetupRoute
+  '/signin': typeof SigninRoute
+  '/auth/verify': typeof AuthVerifyRoute
+  '/portal/security': typeof PortalSecurityRoute
+  '/workspace/security': typeof WorkspaceSecurityRoute
+  '/portal': typeof PortalIndexRoute
+  '/workspace': typeof WorkspaceIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/portal': typeof PortalRouteRouteWithChildren
+  '/workspace': typeof WorkspaceRouteRouteWithChildren
+  '/setup': typeof SetupRoute
+  '/signin': typeof SigninRoute
+  '/auth/verify': typeof AuthVerifyRoute
+  '/portal/security': typeof PortalSecurityRoute
+  '/workspace/security': typeof WorkspaceSecurityRoute
+  '/portal/': typeof PortalIndexRoute
+  '/workspace/': typeof WorkspaceIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/portal'
+    | '/workspace'
+    | '/setup'
+    | '/signin'
+    | '/auth/verify'
+    | '/portal/security'
+    | '/workspace/security'
+    | '/portal/'
+    | '/workspace/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/setup'
+    | '/signin'
+    | '/auth/verify'
+    | '/portal/security'
+    | '/workspace/security'
+    | '/portal'
+    | '/workspace'
+  id:
+    | '__root__'
+    | '/'
+    | '/portal'
+    | '/workspace'
+    | '/setup'
+    | '/signin'
+    | '/auth/verify'
+    | '/portal/security'
+    | '/workspace/security'
+    | '/portal/'
+    | '/workspace/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PortalRouteRoute: typeof PortalRouteRouteWithChildren
+  WorkspaceRouteRoute: typeof WorkspaceRouteRouteWithChildren
+  SetupRoute: typeof SetupRoute
+  SigninRoute: typeof SigninRoute
+  AuthVerifyRoute: typeof AuthVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +161,107 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/verify': {
+      id: '/auth/verify'
+      path: '/auth/verify'
+      fullPath: '/auth/verify'
+      preLoaderRoute: typeof AuthVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal/': {
+      id: '/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/security': {
+      id: '/portal/security'
+      path: '/security'
+      fullPath: '/portal/security'
+      preLoaderRoute: typeof PortalSecurityRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/workspace/': {
+      id: '/workspace/'
+      path: '/'
+      fullPath: '/workspace/'
+      preLoaderRoute: typeof WorkspaceIndexRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/security': {
+      id: '/workspace/security'
+      path: '/security'
+      fullPath: '/workspace/security'
+      preLoaderRoute: typeof WorkspaceSecurityRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
   }
 }
 
+interface PortalRouteRouteChildren {
+  PortalSecurityRoute: typeof PortalSecurityRoute
+  PortalIndexRoute: typeof PortalIndexRoute
+}
+
+const PortalRouteRouteChildren: PortalRouteRouteChildren = {
+  PortalSecurityRoute: PortalSecurityRoute,
+  PortalIndexRoute: PortalIndexRoute,
+}
+
+const PortalRouteRouteWithChildren = PortalRouteRoute._addFileChildren(
+  PortalRouteRouteChildren,
+)
+
+interface WorkspaceRouteRouteChildren {
+  WorkspaceSecurityRoute: typeof WorkspaceSecurityRoute
+  WorkspaceIndexRoute: typeof WorkspaceIndexRoute
+}
+
+const WorkspaceRouteRouteChildren: WorkspaceRouteRouteChildren = {
+  WorkspaceSecurityRoute: WorkspaceSecurityRoute,
+  WorkspaceIndexRoute: WorkspaceIndexRoute,
+}
+
+const WorkspaceRouteRouteWithChildren = WorkspaceRouteRoute._addFileChildren(
+  WorkspaceRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PortalRouteRoute: PortalRouteRouteWithChildren,
+  WorkspaceRouteRoute: WorkspaceRouteRouteWithChildren,
+  SetupRoute: SetupRoute,
+  SigninRoute: SigninRoute,
+  AuthVerifyRoute: AuthVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
