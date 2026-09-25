@@ -60,15 +60,25 @@ describe('security headers', () => {
 
 describe('routing', () => {
   it('answers unknown API paths with JSON 404, not the SPA', async () => {
-    for (const path of ['/api/nope', '/auth/nope', '/f/nope', '/brand/nope', '/webhooks/nope']) {
+    for (const path of ['/api/nope', '/f/nope', '/brand/nope', '/webhooks/nope']) {
       const res = await call(path);
       expect(res.status, path).toBe(404);
       expect(res.headers.get('Content-Type'), path).toContain('application/json');
     }
   });
 
-  it('rejects non-GET methods on page routes', async () => {
-    const res = await call('/', { method: 'POST' });
+  it('serves GET /auth/* as SPA pages (the sign-in interstitial) and never as an API', async () => {
+    const res = await call('/auth/verify?t=abc', { headers: { Accept: 'text/html' } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('text/html');
+  });
+
+  it('rejects non-GET methods on page routes (after the CSRF check)', async () => {
+    expect((await call('/', { method: 'POST' })).status).toBe(403);
+    const res = await call('/', {
+      method: 'POST',
+      headers: { Origin: 'https://portal.test', Cookie: '__Host-csrf=t', 'X-CSRF-Token': 't' },
+    });
     expect(res.status).toBe(405);
   });
 

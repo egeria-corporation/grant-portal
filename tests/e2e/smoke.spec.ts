@@ -12,11 +12,10 @@ test('the SPA boots under the strict CSP with no violations', async ({ page }) =
     if (/Content Security Policy|Refused to/i.test(msg.text())) violations.push(msg.text());
   });
 
-  const res = await page.goto('/');
+  const res = await page.goto('/signin');
   expect(res?.headers()['content-security-policy']).toContain("'strict-dynamic'");
 
-  await expect(page.getByRole('heading', { name: 'It works' })).toBeVisible();
-  await expect(page.getByTestId('health')).toHaveText(/All systems ready/);
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   expect(violations).toEqual([]);
 });
 

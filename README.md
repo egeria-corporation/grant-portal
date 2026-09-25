@@ -37,6 +37,8 @@ npm run dev                      # SPA + Worker on http://localhost:5173 with lo
 
 `npm run dev` applies database migrations to the local D1 first. Nothing else is required; the Worker generates its own secrets locally when they are blank.
 
+Without `RESEND_API_KEY`, emails aren't sent: sign-in links and codes are printed in the terminal running `npm run dev`. The setup code for claiming the portal is printed there too.
+
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the app locally |

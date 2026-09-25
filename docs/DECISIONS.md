@@ -60,3 +60,84 @@ npm 11 blocks dependency install scripts unless they're allowed. `package.json �
 
 ### D-017 `audit_log` append-only is enforced by the database
 Migration `0001` adds `BEFORE UPDATE` / `BEFORE DELETE` triggers that abort. Retention purges and client hard-deletes add audit entries and never remove them. Personal data in audit rows is kept to hashes and IDs, so the log doesn't have to be edited to honour a deletion.
+
+## M1
+
+### D-018 `/auth/*`: GET is a page, POST is the API
+`GET /auth/verify?t=…` serves the SPA, which renders the interstitial ("Sign in to Acme Grants as jane@org.org → Continue"). Only `POST /auth/link/consume` spends the token, so link scanners that fetch the URL can't burn it (spec §7.1). The interstitial reads the token once, keeps it in `sessionStorage` for a reload, and removes it from the address bar and history with `history.replaceState`. Every other `/auth/*` endpoint is POST-only.
+
+### D-019 Claiming a portal
+The `setup` settings row doesn't exist until the portal is claimed, so `INSERT OR IGNORE` is the first-claimant lock. The Owner row is inserted in the same D1 batch, conditional on the recorded owner id, which makes the claim atomic even with several setup links in flight (tested with six concurrent claims). Two ways to prove ownership:
+- **Email.** The setup email always goes out from Resend's shared test sender `onboarding@resend.dev`, which only delivers to the Resend account owner. Only the person holding the Resend account can claim by email, even if that account already has verified domains.
+- **Setup code in the Worker logs** (spec §3.3). 60 bits (12 Crockford base32 characters), stored as a salted hash. After 10 wrong attempts it's burned. `POST /api/setup/setup-code` prints a fresh one (rate-limited). It is generated lazily on the first visit to an unclaimed portal and deleted once the portal is claimed.
+
+### D-020 KV rate limits are best-effort; D1 holds the hard bounds
+Spec §7.1 asks for KV counters. KV has no atomic increment, so a burst of simultaneous requests can overshoot a limit by the number of racing requests. Every limited action also has an atomic bound in D1: single-use tokens, 5 code attempts per request, and 10 setup-code attempts. Keys are `rl:<bucket>:<HMAC(subject)>:<window>`, never raw emails or IPs. Limits: magic-link request 5/h per email and 20/h per IP (spec). Code entry is 30/h per IP, link peek/consume 60/h per IP, setup 10/h per IP, and passkey ceremonies 60/h per IP. KV writes happen only on these endpoints, which keeps well inside the free-plan write quota.
+
+### D-021 Turnstile without keys (amends D-002)
+With no keys configured, requests aren't challenged, in dev and production alike. Production shows the Owner an "Add Turnstile" notice, and the rate limits still apply. D-002 said dev would use Cloudflare's always-pass test keys by default. Doing that would load the external script in every local run and in E2E, so dev now starts with Turnstile off. Cloudflare's documented test secrets (always-pass / always-fail) are verified locally without a network call, which keeps tests hermetic. An unreachable siteverify fails closed.
+
+### D-022 Enumeration safety: sign-in email work happens after the response
+`POST /auth/magic/request` checks Turnstile and the rate limits (identical for every address), then answers `202 {"ok":true}`. The user lookup, token creation and send run in `waitUntil`, so response content and timing don't depend on whether the account exists. Unknown addresses get no email and leave no row. It uses `waitUntil` rather than the Queue because sign-in email latency matters; the Queue pipeline (M4) is for everything else. Code checks for unknown emails do the same hashing work as real attempts and return the same `code_invalid`.
+
+### D-023 Link lifecycle details
+- A new request supersedes the same email's outstanding requests of the same purpose, so only the latest link and code work.
+- The 5th wrong code invalidates the whole request, link included (spec: "the request is invalidated").
+- Codes are drawn by rejection sampling, so there's no modulo bias.
+- Neither the code nor the token appears in the email subject (lock-screen previews). Only `SHA-256(token)` and `SHA-256(code + salt)` are stored.
+
+### D-024 M1 email templates are plain TypeScript, text-first
+Magic-link, setup, invite and new-device emails live in `worker/email/templates/`. They render the same blocks to text and minimal HTML, with no images, tracking or remote resources (spec §7.6). The branded react-email set (spec §9) arrives in M4 and replaces the HTML part; the text part stays the reference.
+
+### D-025 New-device detection
+A random `__Host-device` cookie (HttpOnly, 400 days) identifies a browser. Its hash is stored per user in `user_devices`. A sign-in from a browser the user hasn't used before sends the new-device email, except on the very first sign-in, which is account creation, not a new device. The alternative, a heuristic on IP and UA, would email people every time their IP changes.
+
+### D-026 Sessions and step-up
+- The stored session key is plain SHA-256 of the 256-bit cookie value, not an HMAC. Rotating `SESSION_SECRET` therefore doesn't sign everyone out, and the ID's entropy already makes it unguessable.
+- IPs are stored as `HMAC(SESSION_SECRET, ip)`. The User-Agent is stored only as a coarse label ("Chrome on macOS").
+- Each session also gets a `public_id` (`ses_…`) used by the session list and revoke. The cookie value and its hash never leave the server.
+- `last_seen`/idle expiry is refreshed at most every 5 minutes, which limits D1 writes.
+- Step-up: a magic-link, code or passkey sign-in stamps `step_up_at`, and so does a passkey assertion on an existing session. `requireStepUp(30 min)` guards security settings (Turnstile, passkey policy) and passkey removal. Export and delete gain it in M6.
+- Sessions rotate (new ID, same row) on passkey registration and on step-up. Any sign-in revokes the session the browser already had.
+
+### D-027 Copy-link invites only for new accounts
+A copyable invite link signs in whoever opens it. For an address that already has an account, that would let staff impersonate a client or colleague, and the audit log would attribute the actions to the wrong person. So:
+- A copy-link client invite for an existing client user adds them to the client directly, with no link; they keep signing in with their own email.
+- A copy-link team invite for an existing team member is refused.
+- Emailed invites to existing users are fine, because the link goes to their inbox.
+- The remaining risk is inherent to spec §3.4: whoever receives a copy link for a new account can open it. It's listed in `docs/security.md` → Known limitations.
+
+### D-028 CSRF on every state-changing request
+Spec §7.2 asks for an Origin check plus double-submit "for form posts". The SPA makes every write with fetch, so both checks apply to every non-GET request outside `/webhooks/*` (webhooks are signature-verified in M4).
+- A missing Origin is rejected, not waved through.
+- The Origin must equal the request's own origin exactly.
+- The token is a random `__Host-csrf` cookie (not HttpOnly, Secure, SameSite=Lax), echoed in `X-CSRF-Token`. It is set on the first response of any kind.
+
+### D-029 Passkeys
+- Discoverable credentials (usernameless sign-in) with **user verification required**, so a passkey counts as a strong factor for step-up.
+- Challenges are D1 rows consumed atomically. Registration challenges are bound to the requesting user.
+- The RP ID is the request hostname. Passkeys made on `*.workers.dev` don't work on a custom domain, and the wizard's domain step says so.
+- Clients can't register passkeys; spec §7.1 scopes them to staff.
+- **Require passkeys** (Owner):
+  - staff who have a passkey must use it, and a magic link returns `passkey_required`;
+  - staff without one can sign in by link but are held on an enrollment screen, and every staff/Owner API answers `passkey_enrollment_required`;
+  - the Owner must have a passkey before turning the policy on.
+- Lost-passkey recovery is in `docs/security.md`.
+
+### D-030 Team sign-in before the domain is verified
+Spec §3.4 says team members sign in "via the setup code or a verified domain". The setup code is single-use and only for claiming, so before the domain is verified the path for a team member is a single-use invite link (72 h), then a passkey for later sign-ins.
+
+### D-031 Wizard scope in M1
+- Logo, dark logo and favicon upload wait for the SVG sanitizer in M2. The brand step has firm name, accent, welcome line and a live preview.
+- An accent is rejected (422) when neither white nor near-black text reaches 4.5:1 on it. The automatic nudge comes with the M2 ramp generator.
+- The OpenGrants key is stored encrypted but not test-called, because each call spends the 25/day budget.
+- The Owner "restrict staff sign-in to an email domain" setting (spec §7.1) lands with Settings → Security in M6.
+
+### D-032 Custom domain via the Workers Custom Domains API
+With a Cloudflare API token, `PUT /accounts/:id/workers/domains` attaches the hostname. The Worker's service name is inferred from its `*.workers.dev` hostname and can be overridden; the account and zone come from the zone lookup. Without a token the wizard records the hostname and shows the dashboard steps. The token and the OpenGrants key are stored AES-GCM encrypted (`settings:<key>` as AAD), never returned by the API.
+
+### D-033 E2E harness
+Playwright runs `vite preview` with `PORTAL_E2E=1`. That uses a separate persisted state directory (`.wrangler/e2e-state`, deleted before each run), so every run is a fresh, unclaimed deploy. It also sets `APP_ENV=development`, so emails go to the local outbox, which the test reads at `GET /api/dev/outbox`. That endpoint checks `APP_ENV` explicitly rather than Vite's `DEV` flag, so no production build can expose it; a test pins this. `PLAYWRIGHT_CHROMIUM_PATH` optionally points at a preinstalled Chromium.
+
+### New dependencies (M1)
+`@simplewebauthn/server` and `@simplewebauthn/browser` (spec §4 stack) for passkeys. Nothing else.

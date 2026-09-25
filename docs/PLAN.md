@@ -21,24 +21,26 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [ ] **Manual:** Deploy button run on a fresh account (owner: you — steps in M0 report / `docs/deploy.md`)
 
 ## M1 — Auth & first-run wizard
-- [ ] Magic link request (Turnstile + KV rate limits 5/h/email, 20/h/IP), enumeration-safe response + timing
-- [ ] Token (256-bit) + 6-digit code; store SHA-256 hashes; 15-min expiry; purpose signin|invite|setup
-- [ ] GET interstitial → POST consume (atomic `UPDATE … WHERE used_at IS NULL AND expires_at > now`)
-- [ ] Code entry, 5 attempts then invalidate
-- [ ] Sessions: `__Host-session`, hashed IDs, idle/absolute expiry per kind, rotation on privilege change
-- [ ] Session list, revoke, sign-out-everywhere; staff revoke client sessions
-- [ ] New-device email
-- [ ] CSRF: Origin check + double-submit token; tests
-- [ ] Passkeys (SimpleWebAuthn) register/login for staff; Owner "require passkeys"
-- [ ] Owner-gated secrets banner (from M0 status endpoint)
-- [ ] Wizard: Claim (first claimant lock + setup code in logs) → Brand → Email sender (Resend domains + DNS table + verify polling; optional CF API token auto-DNS) → Custom domain → OpenGrants key → Invite team → First client / demo data → "Your portal is live"
-- [ ] Pre-verification restrictions (§3.4) + single-use 72h copy-invite link
-- [ ] Turnstile config in wizard/settings; test keys in dev; "add Turnstile" notice in prod
-- [ ] Vitest: concurrency single-use, expiry, attempts, enumeration, CSRF, cookie flags
-- [ ] Playwright: fresh deploy → wizard → Owner signed in → demo client
+- [x] Magic link request (Turnstile + KV rate limits 5/h/email, 20/h/IP), enumeration-safe response + timing (D-020, D-022)
+- [x] Token (256-bit) + 6-digit code; store SHA-256 hashes; 15-min expiry; purpose signin|invite|setup
+- [x] GET interstitial → POST consume (atomic `UPDATE … WHERE used_at IS NULL AND expires_at > now`) (D-018)
+- [x] Code entry, 5 attempts then invalidate (D-023)
+- [x] Sessions: `__Host-session`, hashed IDs, idle/absolute expiry per kind, rotation on privilege change (D-026)
+- [x] Session list, revoke, sign-out-everywhere; staff revoke client sessions
+- [x] New-device email (D-025)
+- [x] CSRF: Origin check + double-submit token; tests (D-028)
+- [x] Passkeys (SimpleWebAuthn) register/login for staff; Owner "require passkeys"; step-up (D-029)
+- [x] Owner-gated secrets banner (from M0 status endpoint)
+- [~] Wizard: Claim (first claimant lock + setup code in logs) → Brand → Email sender (Resend domains + DNS table + verify polling; optional CF API token auto-DNS) → Custom domain → OpenGrants key → Invite team → First client / demo data → "Your portal is live". Logo/favicon upload moves to M2 with the SVG sanitizer (D-031)
+- [x] Pre-verification restrictions (§3.4) + single-use 72h copy-invite link (new accounts only, D-027)
+- [x] Turnstile config in settings; local test-key verification; "add Turnstile" notice (D-021)
+- [x] Vitest: concurrency single-use, expiry, attempts, enumeration, CSRF, cookie flags, generated authz/IDOR over every route, passkeys via a software authenticator
+- [x] Playwright: fresh deploy → wizard → Owner signed in → demo client → sign out → sign in with code (D-033)
+- [ ] **Manual:** claim a real deployment by email (Resend account address) and by setup code from Workers Logs (owner: you — steps in `docs/deploy.md`)
 
 ## M2 — Theming engine & design system
-- [ ] Brand settings in D1 → `/brand/theme.css` (KV + edge cache, purge on change)
+- [ ] Brand settings in D1 → `/brand/theme.css` (KV + edge cache, purge on change); replaces M1's CSSOM accent (app/lib/session.ts)
+- [ ] Logo (light/dark) + favicon upload in the wizard's Brand step and Settings → Brand (carried from M1, D-031)
 - [ ] Dynamic favicon, manifest, OG image
 - [ ] Accent ramp generator (port of design `calc`) + WCAG AA checks + nudge; unit tests across light/dark extremes
 - [ ] Radius/density presets, neutral temperature, heading font presets, self-hosted fonts, WOFF2 upload
@@ -79,7 +81,7 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [ ] Tests with mock provider; live smoke test gated on `OPENGRANTS_API_KEY`
 
 ## M6 — Hardening, docs, release
-- [ ] Settings > Security; audit log viewer/export; data export ZIP; hard delete client; retention purge
+- [ ] Settings > Security (staff email-domain restriction, IP allowlist, session length; D-031); Team page (roles, remove passkeys); audit log viewer/export; data export ZIP; hard delete client; retention purge; step-up on export/delete
 - [ ] Header set verified by test
 - [ ] Perf budget (client routes < 200 KB gz, build fails otherwise) + Lighthouse
 - [ ] axe on every portal screen + auth
