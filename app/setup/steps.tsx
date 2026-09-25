@@ -1,12 +1,10 @@
 /** Wizard steps 2–7 (spec §3.3). Each ends by calling onNext('done' | 'skipped'). */
-import { checkAccent } from '@shared/contrast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Cloud, Copy, ExternalLink, Sparkles, UserPlus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { deleteJson, errorMessage, getJson, postJson, putJson } from '@/lib/api';
-import { applyAccent } from '@/lib/session';
-import { FirmMark } from '@/ui/AuthShell';
+import { BrandEditor } from '@/settings/BrandEditor';
 import { Button, CopyField, Field, Input, Notice } from '@/ui/controls';
 
 export type StepResult = 'done' | 'skipped';
@@ -55,98 +53,16 @@ function StepActions({ children, onSkip }: { children?: ReactNode; onSkip?: () =
 }
 
 // ---------------------------------------------------------------------------
-// Step 2: brand
+// Step 2: brand (the full editor lives in Settings → Brand)
 // ---------------------------------------------------------------------------
 export function BrandStep({ onNext }: StepProps) {
-  const overview = useOverview();
-  const qc = useQueryClient();
-  const [firmName, setFirmName] = useState('');
-  const [accent, setAccent] = useState('#5b4fd6');
-  const [welcome, setWelcome] = useState('');
-  const [loaded, setLoaded] = useState(false);
-  const preview = useRef<HTMLDivElement>(null);
-
-  if (overview.data && !loaded) {
-    setLoaded(true);
-    setFirmName(overview.data.brand.firmName);
-    setAccent(overview.data.brand.accent);
-    setWelcome(overview.data.brand.welcome ?? '');
-  }
-
-  const check = checkAccent(accent);
-  useEffect(() => {
-    if (preview.current) applyAccent(accent, preview.current);
-  }, [accent]);
-
-  const save = useMutation({
-    mutationFn: () => putJson('/api/settings/brand', { firmName, accent, welcome: welcome || undefined }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['config'] });
-      await qc.invalidateQueries({ queryKey: ['settings'] });
-      onNext('done');
-    },
-  });
-
   return (
-    <form
-      className="flex flex-col gap-5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        save.mutate();
-      }}
-    >
+    <div className="flex flex-col gap-5">
       <StepHeader n={2} title="Your brand">
-        This is what your clients see. Logo, fonts and more arrive in Settings → Brand.
+        This is what your clients see. Fonts, favicon and link previews can be fine-tuned later in Settings → Brand.
       </StepHeader>
-      <Field label="Firm name">
-        {(p) => <Input {...p} required maxLength={80} value={firmName} onChange={(e) => setFirmName(e.target.value)} />}
-      </Field>
-      <Field
-        label="Accent color"
-        error={check && !check.passesAA ? `Contrast ${check.ratio}:1 is below 4.5:1. Try a darker or more saturated shade.` : null}
-        hint={check ? `Contrast ${check.ratio}:1 with ${check.onAccent === '#ffffff' ? 'white' : 'dark'} text: passes WCAG AA.` : null}
-      >
-        {(p) => (
-          <div className="flex gap-2">
-            <input
-              type="color"
-              aria-label="Pick accent color"
-              value={/^#[0-9a-f]{6}$/i.test(accent) ? accent : '#000000'}
-              onChange={(e) => setAccent(e.target.value)}
-              className="h-[34px] w-12 cursor-pointer rounded-sm border border-binput bg-raised p-1"
-            />
-            <Input {...p} value={accent} onChange={(e) => setAccent(e.target.value.trim())} className="font-code" invalid={!check?.passesAA} />
-          </div>
-        )}
-      </Field>
-      <Field label="Welcome line for clients" hint="Shown on the sign-in screen.">
-        {(p) => (
-          <Input {...p} maxLength={280} value={welcome} onChange={(e) => setWelcome(e.target.value)} placeholder="Welcome! Sign in to see what’s next." />
-        )}
-      </Field>
-
-      <div ref={preview} className="rounded-card border border-border bg-bg p-5" aria-label="Sign-in preview">
-        <p className="mb-3 text-[11.5px] font-medium uppercase tracking-wide text-text3">Client sign-in preview</p>
-        <div className="mx-auto max-w-xs rounded-card border border-border bg-raised p-5 shadow-panel">
-          <div className="mb-4 flex items-center gap-2.5">
-            <FirmMark name={firmName} size={32} />
-            <span className="hd text-[15px]">{firmName || 'Your firm'}</span>
-          </div>
-          <p className="text-[13px] text-text2">{welcome || "Enter your email and we'll send you a sign-in link."}</p>
-          <div className="mt-3 h-[34px] rounded-sm border border-binput bg-raised" />
-          <div className="mt-3 grid h-[34px] place-items-center rounded-btn bg-acc text-[13px] font-medium text-acc-on">
-            Email me a sign-in link
-          </div>
-        </div>
-      </div>
-
-      {save.isError ? <Notice tone="danger">{errorMessage(save.error)}</Notice> : null}
-      <StepActions>
-        <Button type="submit" loading={save.isPending} disabled={!firmName.trim() || !check?.passesAA}>
-          Save and continue
-        </Button>
-      </StepActions>
-    </form>
+      <BrandEditor compact submitLabel="Save and continue" onSaved={() => onNext('done')} />
+    </div>
   );
 }
 

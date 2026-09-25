@@ -96,10 +96,13 @@ describe('wizard', () => {
     return agent;
   }
 
-  it('saves brand basics and rejects an accent that fails WCAG AA', async () => {
+  it('saves brand basics and nudges an accent that would fail WCAG AA', async () => {
     const agent = await owner();
-    const bad = await agent.fetch('/api/settings/brand', { method: 'PUT', json: { firmName: 'Acme Grants', accent: '#787878' } });
-    expect(bad.status).toBe(422);
+    const grey = await agent.fetch('/api/settings/brand', { method: 'PUT', json: { firmName: 'Acme Grants', accent: '#787878' } });
+    expect(grey.status).toBe(200);
+    const out = await grey.json<{ contrast: { adjusted: boolean; ratio: number; solid: string } }>();
+    expect(out.contrast.adjusted).toBe(true);
+    expect(out.contrast.ratio).toBeGreaterThanOrEqual(4.5);
     const ok = await agent.fetch('/api/settings/brand', {
       method: 'PUT',
       json: { firmName: 'Acme Grants', accent: '#1F5FAD', welcome: 'Welcome!' },

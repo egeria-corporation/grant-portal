@@ -34,7 +34,7 @@ export class Agent {
 
   async fetch(
     path: string,
-    init: { method?: string; json?: unknown; headers?: Record<string, string>; env?: AppEnv; csrf?: boolean } = {},
+    init: { method?: string; json?: unknown; body?: BodyInit; headers?: Record<string, string>; env?: AppEnv; csrf?: boolean } = {},
   ): Promise<Response> {
     const method = init.method ?? (init.json === undefined ? 'GET' : 'POST');
     const headers = new Headers(init.headers);
@@ -45,7 +45,7 @@ export class Agent {
       if (!headers.has('Origin')) headers.set('Origin', ORIGIN);
       if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', this.cookies.get('__Host-csrf') ?? '');
     }
-    let body: BodyInit | undefined;
+    let body: BodyInit | undefined = init.body;
     if (init.json !== undefined) {
       headers.set('Content-Type', 'application/json');
       body = JSON.stringify(init.json);
@@ -91,6 +91,8 @@ export async function resetDb(): Promise<void> {
   ]);
   const keys = await testEnv.KV.list({ prefix: 'rl:' });
   await Promise.all(keys.keys.map((k) => testEnv.KV.delete(k.name)));
+  const objects = await testEnv.FILES.list();
+  await Promise.all(objects.objects.map((o) => testEnv.FILES.delete(o.key)));
 }
 
 export type Role = 'owner' | 'consultant' | 'client_admin' | 'client_member';
