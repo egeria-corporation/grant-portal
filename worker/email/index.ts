@@ -2,6 +2,7 @@
  * Picks the email provider and sender address, and records each send in the
  * `emails` table (spec §9). Magic-link content is never stored.
  */
+import { demoMode } from '../demo/mode';
 import type { AppEnv } from '../env';
 import { isDev } from '../env';
 import { newId } from '../lib/ids';
@@ -54,6 +55,7 @@ export async function sender(env: AppEnv): Promise<Sender> {
 
 /** Client and team email is blocked until the sending domain is verified (spec §3.4). */
 export async function canEmailOthers(env: AppEnv): Promise<boolean> {
+  if (demoMode(env)) return false;
   return (await sender(env)).verified;
 }
 
@@ -79,12 +81,14 @@ export async function sendEmail(
 ): Promise<string> {
   const id = newId('eml');
   const category = p.category ?? 'auth';
-  const skip = Boolean(p.suppressed) && category !== 'auth' && category !== 'transactional';
+  // Demo mode: only real people's sign-in mail (the Owner's) goes out.
+  const demoBlocked = demoMode(env) && (category !== 'auth' || p.to.endsWith('@demo.invalid'));
+  const skip = demoBlocked || (Boolean(p.suppressed) && category !== 'auth' && category !== 'transactional');
   await env.DB.prepare(
     `INSERT INTO emails (id, to_user_id, to_email, client_id, template, category, subject, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, p.userId ?? null, p.to, p.clientId ?? null, p.template, category, p.rendered.subject, skip ? 'suppressed' : 'queued', Date.now())
+    .bind(id, p.userId ?? null, p.to, p.clientId ?? null, p.template, category, p.rendered.subject, demoBlocked ? 'demo' : skip ? 'suppressed' : 'queued', Date.now())
     .run();
   if (skip) return id;
   const from = p.from ?? (await sender(env)).from;

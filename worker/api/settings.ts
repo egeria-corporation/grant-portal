@@ -18,7 +18,9 @@ import { EmailNotConfiguredError, EmailProviderError, type DnsRecord } from '../
 import type { AppBindings, AppEnv } from '../env';
 import { CloudflareApi, CloudflareApiError, workerNameFromHost } from '../integrations/cloudflare';
 import { audit } from '../lib/audit';
-import { HttpError, parseJson, publicOrigin } from '../lib/http';
+import { parseCidr } from '../lib/cidr';
+import { clientIp, HttpError, parseJson, publicOrigin } from '../lib/http';
+import { securityPolicy, staffEmailAllowed, staffIpAllowed } from '../lib/security';
 import {
   decryptSecretSetting,
   DEFAULT_ACCENT,
@@ -26,6 +28,7 @@ import {
   encryptSecretSetting,
   getSetting,
   setSetting,
+  SETTINGS,
 } from '../lib/settings';
 import { turnstileConfig } from '../lib/turnstile';
 
@@ -84,7 +87,9 @@ export const settingsApi = new Hono<AppBindings>()
       opengrants: { configured: Boolean(c.env.OPENGRANTS_API_KEY) || Boolean(og), source: c.env.OPENGRANTS_API_KEY ? 'env' : og ? 'settings' : null },
       cloudflareToken: Boolean(cf),
       turnstile: { configured: Boolean(ts), source: ts?.source ?? null, siteKey: ts?.siteKey ?? null },
-      security: { requirePasskeysForStaff: security?.requirePasskeysForStaff ?? false },
+      security: security ?? SETTINGS.security.parse({}),
+      /** So the IP allowlist form can show (and pre-fill) where the Owner is now. */
+      yourIp: clientIp(c.req.raw),
       deliveryTracking: Boolean(webhook),
       timezone: org?.timezone ?? null,
       workerName: workerNameFromHost(new URL(c.req.url).hostname),
@@ -346,16 +351,53 @@ export const settingsApi = new Hono<AppBindings>()
     return c.json({ ok: true });
   })
 
+  /**
+   * Settings → Security (spec §5.9). Partial: only the fields sent change.
+   * Refuses changes that would lock the Owner out right now (D-075).
+   */
   .put('/security', requireStepUp(), async (c) => {
-    const body = await parseJson(c, z.object({ requirePasskeysForStaff: z.boolean() }));
+    const domain = z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/);
+    const cidr = z
+      .string()
+      .trim()
+      .max(64)
+      .refine((v) => parseCidr(v) !== null);
+    const body = await parseJson(
+      c,
+      z
+        .object({
+          requirePasskeysForStaff: z.boolean(),
+          staffEmailDomains: z.array(domain).max(20),
+          staffIpAllowlist: z.array(cidr).max(50),
+          staffIdleHours: z.number().int().min(1).max(24),
+          staffMaxDays: z.number().int().min(1).max(30),
+          clientIdleDays: z.number().int().min(1).max(30),
+          clientMaxDays: z.number().int().min(1).max(90),
+          linkMinutes: z.number().int().min(5).max(60),
+          retention: z.object({
+            deletedFilesDays: z.number().int().min(1).max(365),
+            emailLogDays: z.number().int().min(30).max(3650),
+          }),
+        })
+        .partial(),
+    );
+    const { user } = authOf(c);
+    const next = { ...(await securityPolicy(c.env)), ...body };
     if (body.requirePasskeysForStaff) {
       // Don't let the Owner lock themselves into an enrollment gate by accident.
-      const own = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys WHERE user_id = ?')
-        .bind(authOf(c).user.id)
-        .first<{ n: number }>();
+      const own = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys WHERE user_id = ?').bind(user.id).first<{ n: number }>();
       if (!own?.n) throw new HttpError(409, 'register_passkey_first');
     }
-    await setSetting(c.env, 'security', body);
-    await audit(c, { action: 'settings.updated', target: 'security', meta: body });
-    return c.json({ ok: true });
+    if (body.staffEmailDomains && !staffEmailAllowed(next, user.email)) throw new HttpError(422, 'would_lock_you_out', { fields: ['staffEmailDomains'] });
+    if (body.staffIpAllowlist && !staffIpAllowed(next, clientIp(c.req.raw))) throw new HttpError(422, 'would_lock_you_out', { fields: ['staffIpAllowlist'] });
+    if (next.staffIdleHours * 3600_000 > next.staffMaxDays * 86_400_000 || next.clientIdleDays > next.clientMaxDays) {
+      throw new HttpError(422, 'invalid_input', { fields: ['staffIdleHours', 'clientIdleDays'] });
+    }
+    await setSetting(c.env, 'security', next);
+    await audit(c, { action: 'settings.updated', target: 'security', meta: { changed: Object.keys(body) } });
+    return c.json({ security: next });
   });

@@ -26,7 +26,13 @@ export interface OptionalBindings {
   SCANNER?: Fetcher;
 }
 
-export type AppEnv = Env & Secrets & OptionalBindings;
+/** Vars a deployment may add in wrangler.jsonc; absent means off. */
+export interface OptionalVars {
+  /** "1" turns on the public demo (worker/demo/mode.ts). Never on a real deployment. */
+  DEMO_MODE?: string;
+}
+
+export type AppEnv = Env & Secrets & OptionalBindings & OptionalVars;
 
 export type Role = 'owner' | 'consultant' | 'client_admin' | 'client_member';
 

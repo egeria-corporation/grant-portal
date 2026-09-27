@@ -13,8 +13,9 @@ import { audit } from '../lib/audit';
 import { eventStmts } from '../lib/events';
 import { rememberOrigin } from '../lib/origin';
 import { randomToken, sha256Hex } from '../lib/crypto';
-import { HttpError, publicOrigin, uaLabel } from '../lib/http';
+import { clientIp, HttpError, publicOrigin, uaLabel } from '../lib/http';
 import { newId } from '../lib/ids';
+import { securityPolicy, staffEmailAllowed, staffIpAllowed } from '../lib/security';
 import { getSetting } from '../lib/settings';
 import { readCookie, writeDeviceCookie } from './cookies';
 import type { LinkRow } from './magic';
@@ -151,6 +152,14 @@ export async function completeLink(c: C, link: LinkRow): Promise<{ redirect: str
 }
 
 export async function startSession(c: C, user: AuthUser, method: 'link' | 'code' | 'passkey'): Promise<{ redirect: string }> {
+  if (user.kind === 'staff') {
+    // Settings → Security: staff email domains and IP allowlist (spec §5.9).
+    const policy = await securityPolicy(c.env);
+    if (!staffEmailAllowed(policy, user.email) || !staffIpAllowed(policy, clientIp(c.req.raw))) {
+      await audit(c, { actor: user.id, action: 'auth.staff_restricted', target: user.id, meta: { method } });
+      throw new HttpError(403, 'staff_signin_restricted');
+    }
+  }
   await createSession(c, user, { stepUp: true });
   await noteDevice(c, user);
   await audit(c, { actor: user.id, action: method === 'passkey' ? 'passkey.signin' : 'auth.signin', target: user.id, meta: { method } });

@@ -72,7 +72,7 @@ export function DeliverableList({
         return (
           <li key={d.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <Link to={link.to} params={link.params} className="truncate font-medium text-text hover:text-acc-text hover:underline">
+              <Link to={link.to} params={link.params} className="truncate font-medium text-text hover:text-acc-text underline underline-offset-2">
                 {d.title}
               </Link>
               <span className="t-xs text-text2">
@@ -264,7 +264,7 @@ export function DeliverableView({ clientId, deliverableId, access, backLink }: {
                   <FileRow file={v.file} />
                 ) : v.url ? (
                   <div className="px-4 py-3">
-                    <a href={v.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-acc-text hover:underline">
+                    <a href={v.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-acc-text underline underline-offset-2">
                       <Link2 aria-hidden className="size-4" />
                       {new URL(v.url).host}
                       <ExternalLink aria-hidden className="size-3.5" />

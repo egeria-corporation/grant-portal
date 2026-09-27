@@ -5,6 +5,7 @@
  * resume after a dropped connection. The first bytes are checked against the
  * extension before anything is stored, and the SHA-256 is computed server-side.
  */
+import { DEMO_MAX_UPLOAD, demoMode } from '../demo/mode';
 import type { AppEnv } from '../env';
 import { HttpError } from '../lib/http';
 import { newId } from '../lib/ids';
@@ -20,7 +21,8 @@ export interface FilePolicy {
 
 export async function filePolicy(env: AppEnv): Promise<FilePolicy> {
   const s = await getSetting(env, 'files');
-  return { maxBytes: s?.maxBytes ?? DEFAULT_MAX_BYTES, kinds: s?.kinds ?? DEFAULT_KINDS };
+  const maxBytes = s?.maxBytes ?? DEFAULT_MAX_BYTES;
+  return { maxBytes: demoMode(env) ? Math.min(maxBytes, DEMO_MAX_UPLOAD) : maxBytes, kinds: s?.kinds ?? DEFAULT_KINDS };
 }
 
 export interface FileRow {

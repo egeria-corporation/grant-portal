@@ -33,7 +33,15 @@ export type AuditAction =
   | 'file.deleted'
   | 'deliverable.decided'
   | 'demo.loaded'
-  | 'demo.deleted';
+  | 'demo.deleted'
+  | 'auth.staff_restricted'
+  | 'team.role_changed'
+  | 'team.removed'
+  | 'team.passkeys_reset'
+  | 'audit.exported'
+  | 'data.exported'
+  | 'client.deleted'
+  | 'retention.purged';
 
 export function auditStmt(
   env: AppEnv,

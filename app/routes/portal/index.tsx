@@ -119,7 +119,7 @@ function PortalHome() {
           {o.latestUpdate.intro ? <p className="whitespace-pre-line text-text2">{o.latestUpdate.intro}</p> : null}
           <span className="t-xs text-text2">
             Update from {firm} · {timeAgo(o.latestUpdate.sentAt)} ·{' '}
-            <Link to="/portal/updates" className="text-acc-text hover:underline">
+            <Link to="/portal/updates" className="text-acc-text underline underline-offset-2">
               Read it
             </Link>
           </span>
@@ -134,7 +134,7 @@ function PortalHome() {
           <p className="whitespace-pre-line">{o.latestFromConsultant.body}</p>
           <span className="t-xs text-text2">
             {o.latestFromConsultant.author} · {timeAgo(o.latestFromConsultant.createdAt)} ·{' '}
-            <Link to="/portal/messages" className="text-acc-text hover:underline">
+            <Link to="/portal/messages" className="text-acc-text underline underline-offset-2">
               Reply
             </Link>
           </span>
@@ -149,7 +149,7 @@ function PortalHome() {
           <PipelineMini counts={[stages.researching ?? 0, stages.preparing ?? 0, stages.submitted ?? 0, stages.awarded ?? 0]} />
           <p className="t-sm text-text2">
             {stages.researching ?? 0} researching · {stages.preparing ?? 0} preparing · {stages.submitted ?? 0} submitted · {stages.awarded ?? 0} awarded ·{' '}
-            <Link to="/portal/reports" className="text-acc-text hover:underline">
+            <Link to="/portal/reports" className="text-acc-text underline underline-offset-2">
               See it
             </Link>
           </p>

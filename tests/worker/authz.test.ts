@@ -179,6 +179,15 @@ const POLICY: Record<string, Policy> = {
   'GET /api/funding/listings/:kind/:ogId': 'staff',
   'GET /api/funding/funders': 'staff',
   'GET /api/funding/funders/:funderId': 'staff',
+  'DELETE /api/clients/:clientId': 'clientScopedOwner',
+  'PATCH /api/team/:userId': 'owner',
+  'DELETE /api/team/:userId': 'owner',
+  'DELETE /api/team/:userId/passkeys': 'owner',
+  'DELETE /api/team/invites/:inviteId': 'owner',
+  'GET /api/audit': 'owner',
+  'GET /api/audit/export': 'owner',
+  'GET /api/data/export': 'owner',
+  'POST /api/demo-mode/session': 'public',
 };
 
 /** Concrete routes from the Hono router, minus middleware and the SPA/404 fallbacks. */
@@ -334,6 +343,7 @@ describe('authorization per route', () => {
       .replace(':kind', 'grant')
       .replace(':ogId', 'og-1')
       .replace(':funderId', 'f-1')
+      .replace(':inviteId', 'mlk_01J00000000000000000000000')
       .replace(':key', 'x')
       .replace(':n', '1')
       .replace(':id', 'x_01J00000000000000000000000')

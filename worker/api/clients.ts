@@ -17,6 +17,7 @@ import { emailField, HttpError, normalizeEmail, parseJson } from '../lib/http';
 import { newId } from '../lib/ids';
 import { reminderSettings } from '../jobs/dispatch';
 import { dataKeys, getSecret } from '../lib/secrets';
+import { deleteClient } from './data';
 import { deleteDemo, loadDemo } from './demo';
 import { deliverables, listDeliverables } from './deliverables';
 import { uploads, vault } from './files';
@@ -364,6 +365,20 @@ export const clients = new Hono<AppBindings>()
     await c.env.DB.batch(eventStmts(c.env, { clientId, actor: authOf(c).user.id, type: 'client.ein_revealed' }));
     await audit(c, { action: 'client.ein_revealed', target: clientId });
     return c.json({ ein: `${ein.slice(0, 2)}-${ein.slice(2)}` }, 200, { 'Cache-Control': 'no-store' });
+  })
+
+  /**
+   * Hard delete (spec §5.9): everything about the client, including its files.
+   * Owner only, after a step-up, and the client's name must be typed to confirm.
+   */
+  .delete('/:clientId', requireOwner, staffOnly, requireStepUp(), async (c) => {
+    const clientId = c.req.param('clientId');
+    const body = await parseJson(c, z.object({ confirm: z.string().max(200) }));
+    const row = await clientRow(c.env, clientId);
+    if (body.confirm.trim() !== row.name) throw new HttpError(422, 'confirm_name_mismatch', { fields: ['confirm'] });
+    const out = await deleteClient(c.env, clientId);
+    await audit(c, { action: 'client.deleted', target: clientId, meta: { name: row.name, ...out } });
+    return c.json({ ok: true, ...out });
   })
 
   /** The Owner decides which consultants work on a client (spec §7.3). */

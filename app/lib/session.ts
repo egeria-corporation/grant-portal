@@ -18,6 +18,8 @@ export interface PublicConfig {
   devTools: boolean;
   setupStatus: 'unclaimed' | 'claimed' | 'complete';
   turnstileSiteKey: string | null;
+  /** Public demo deployment (DEMO_MODE). */
+  demo: boolean;
 }
 
 export interface Me {

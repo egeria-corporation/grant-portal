@@ -38,7 +38,7 @@ function Workspace() {
     { to: '/workspace/templates', label: 'Templates' },
     ...(user.role === 'owner'
       ? [
-          { to: '/workspace/settings/brand', label: 'Brand' },
+          { to: '/workspace/settings', label: 'Settings' },
           { to: '/workspace/system', label: 'System' },
         ]
       : []),

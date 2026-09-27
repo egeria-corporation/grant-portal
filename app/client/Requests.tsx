@@ -73,7 +73,7 @@ function ItemRow({ clientId, request, item, access }: { clientId: string; reques
       action={
         open ? (
           <>
-            <input ref={input} type="file" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void upload(e.target.files?.[0])} />
+            <input ref={input} type="file" hidden aria-label="Choose a file" tabIndex={-1} onChange={(e) => void upload(e.target.files?.[0])} />
             <Button variant="secondary" size="sm" onClick={() => input.current?.click()} aria-label={`Upload ${item.label}`}>
               <CloudUpload aria-hidden className="i" />
               Upload
@@ -84,7 +84,7 @@ function ItemRow({ clientId, request, item, access }: { clientId: string; reques
       overdue={
         item.fulfilledAt && item.file ? (
           <>
-            <a href={fileUrl(item.file.id)} download className="t-xs inline-flex items-center gap-1 text-acc-text hover:underline">
+            <a href={fileUrl(item.file.id)} download className="t-xs inline-flex items-center gap-1 text-acc-text underline underline-offset-2">
               <Download aria-hidden className="size-3" /> Download
             </a>
             {staff && open ? (

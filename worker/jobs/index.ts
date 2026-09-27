@@ -4,6 +4,8 @@ import { sendDigest, sendNotification } from '../notify';
 import { refreshDeadlines, runAlertSchedule } from '../funding/alerts';
 import { runUpdateSchedule } from '../updates';
 import { dispatch } from './dispatch';
+import { purgeRetention } from './retention';
+import { resetDemo } from '../demo/mode';
 import { isJob, type Job } from './types';
 
 export const CRON_DISPATCH = '*/15 * * * *';
@@ -37,7 +39,17 @@ export async function cleanupExpired(env: AppEnv, now: number): Promise<void> {
     env.DB.prepare("DELETE FROM job_runs WHERE status = 'done' AND updated_at < ?").bind(now - 30 * 86_400_000),
   ]);
   await purgeStaleUploads(env, now);
-  // Budget-aware; a failure here must not stop tomorrow's cleanup.
+  // Each of these is independent; a failure in one must not stop the others.
+  try {
+    await resetDemo(env);
+  } catch (err) {
+    console.error('[cron] demo reset failed', err);
+  }
+  try {
+    await purgeRetention(env, now);
+  } catch (err) {
+    console.error('[cron] retention purge failed', err);
+  }
   try {
     await refreshDeadlines(env, now);
   } catch (err) {

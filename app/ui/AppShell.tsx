@@ -4,12 +4,13 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { postJson } from '@/lib/api';
-import { useBrand } from '@/lib/session';
+import { useBrand, useConfig } from '@/lib/session';
 import { FirmLogo, ThemeToggle } from './brand';
 import { Button } from './controls';
 
 export function AppShell({ nav, children, aside }: { nav: { to: string; label: string; exact?: boolean }[]; children: ReactNode; aside?: ReactNode }) {
   useBrand();
+  const config = useConfig();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const signOut = useMutation({
@@ -22,6 +23,11 @@ export function AppShell({ nav, children, aside }: { nav: { to: string; label: s
 
   return (
     <div className="min-h-dvh bg-bg">
+      {config.data?.demo ? (
+        <p role="note" className="t-sm bg-warn-bg px-4 py-1.5 text-center text-warn-text">
+          Public demo with sample data. It’s read-only, so changes won’t save.
+        </p>
+      ) : null}
       <header className="border-b border-border bg-raised">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <FirmLogo height={28} />

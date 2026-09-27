@@ -97,7 +97,7 @@ function Today() {
           <ul className="divide-y divide-border">
             {t.needsAttention.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-2 px-4 py-3">
-                <Link to="/workspace/clients/$clientId" params={{ clientId: c.id }} className="flex-1 font-medium text-text hover:text-acc-text hover:underline">
+                <Link to="/workspace/clients/$clientId" params={{ clientId: c.id }} className="flex-1 font-medium text-text hover:text-acc-text underline underline-offset-2">
                   {c.name}
                 </Link>
                 {c.overdueRequests ? <Pill tone="danger">{c.overdueRequests} overdue request{c.overdueRequests > 1 ? 's' : ''}</Pill> : null}

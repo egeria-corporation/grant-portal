@@ -82,11 +82,13 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [x] Email templates: funding report, report response, alert matches (snapshots for 3 brands)
 
 ## M6 — Hardening, docs, release
-- [ ] Settings > Security (staff email-domain restriction, IP allowlist, session length; D-031); Team page (roles, remove passkeys); audit log viewer/export; data export ZIP; hard delete client; retention purge; step-up on export/delete
-- [ ] Header set verified by test
-- [ ] Perf budget (client routes < 200 KB gz, build fails otherwise) + Lighthouse
-- [ ] axe on every portal screen + auth
-- [ ] Docs set + community files + LICENSE (Apache-2.0) + issue templates
-- [ ] Demo-mode seed + nightly reset
-- [ ] Attacker self-review vs §7.7 → Known limitations
-- [ ] Release checklist
+- [x] Settings > Security (staff email-domain restriction, IP allowlist, session length; D-031); Team page (roles, remove passkeys); audit log viewer/export; data export ZIP; hard delete client; retention purge; step-up on export/delete (D-075, D-076)
+- [x] Header set verified by test (`tests/worker/headers.test.ts`)
+- [x] Perf budget (client routes < 200 KB gz, build fails otherwise); Lighthouse is a manual step in the release checklist (D-078)
+- [x] axe on every portal screen + auth (WCAG 2.1 AA rule set, D-078)
+- [x] Docs set + community files + LICENSE (Apache-2.0) + issue templates + PR template + Dependabot
+- [x] Demo-mode seed + nightly reset, read-only per spec §14 (D-077)
+- [x] Attacker self-review vs §7.7 → Known limitations (`docs/security.md`)
+- [x] Release checklist (`docs/release.md`)
+
+Still open before tagging v0.1 (manual, see `docs/release.md`): deploy-from-zero timing on a clean account, README screenshots, Lighthouse run, screen-reader pass.

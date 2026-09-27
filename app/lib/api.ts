@@ -53,7 +53,7 @@ export const getJson = <T>(path: string) => request<T>('GET', path);
 export const postJson = <T>(path: string, body?: unknown) => request<T>('POST', path, body);
 export const putJson = <T>(path: string, body?: unknown) => request<T>('PUT', path, body);
 export const patchJson = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body);
-export const deleteJson = <T>(path: string) => request<T>('DELETE', path);
+export const deleteJson = <T>(path: string, body?: unknown) => request<T>('DELETE', path, body);
 
 /** Human wording for API error codes. Unknown codes get a generic line. */
 const MESSAGES: Record<string, string> = {

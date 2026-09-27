@@ -227,21 +227,21 @@ function ClientOverview() {
         <div className="card p-4">
           <span className="t-xs text-text2">Documents outstanding</span>
           <p className="t-h2 tabular-nums">{o?.openItems.length ?? '–'}</p>
-          <Link to="/workspace/clients/$clientId/documents" params={{ clientId }} className="t-sm text-acc-text hover:underline">
+          <Link to="/workspace/clients/$clientId/documents" params={{ clientId }} className="t-sm text-acc-text underline underline-offset-2">
             Open requests
           </Link>
         </div>
         <div className="card p-4">
           <span className="t-xs text-text2">Deliverables we owe</span>
           <p className="t-h2 tabular-nums">{o?.owedByCaller.length ?? '–'}</p>
-          <Link to="/workspace/clients/$clientId/deliverables" params={{ clientId }} className="t-sm text-acc-text hover:underline">
+          <Link to="/workspace/clients/$clientId/deliverables" params={{ clientId }} className="t-sm text-acc-text underline underline-offset-2">
             {o?.awaitingDecision.length ? `${o.awaitingDecision.length} from the client to review` : 'Open deliverables'}
           </Link>
         </div>
         <div className="card p-4">
           <span className="t-xs text-text2">Unread messages</span>
           <p className="t-h2 tabular-nums">{o?.unreadMessages ?? '–'}</p>
-          <Link to="/workspace/clients/$clientId/messages" params={{ clientId }} className="t-sm text-acc-text hover:underline">
+          <Link to="/workspace/clients/$clientId/messages" params={{ clientId }} className="t-sm text-acc-text underline underline-offset-2">
             Open messages
           </Link>
         </div>

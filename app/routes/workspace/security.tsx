@@ -1,12 +1,9 @@
-/** Staff account: email preferences, calendar feed, sessions, passkeys, and (Owner) Turnstile + passkey policy. */
+/** Staff account: email preferences, calendar feed, sessions, passkeys. Owner settings live under Settings. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { KeyRound } from 'lucide-react';
-import { useState } from 'react';
-import { deleteJson, errorMessage, getJson, putJson } from '@/lib/api';
-import { useMe } from '@/lib/session';
-import { useOverview } from '@/setup/steps';
-import { Button, Card, Field, Input, Notice } from '@/ui/controls';
+import { deleteJson, errorMessage, getJson } from '@/lib/api';
+import { Button, Card, Notice } from '@/ui/controls';
 import { AddPasskeyButton } from '@/ui/PasskeyButton';
 import { SessionsCard } from '@/ui/SessionsCard';
 import { CalendarCard, NotificationsCard } from '@/client/Preferences';
@@ -55,86 +52,7 @@ function PasskeysCard() {
   );
 }
 
-function OwnerSecurity() {
-  const qc = useQueryClient();
-  const overview = useOverview();
-  const [siteKey, setSiteKey] = useState('');
-  const [secret, setSecret] = useState('');
-  const saveTs = useMutation({
-    mutationFn: () => putJson('/api/settings/turnstile', { siteKey, secret }),
-    onSuccess: () => {
-      setSecret('');
-      void qc.invalidateQueries();
-    },
-  });
-  const removeToken = useMutation({
-    mutationFn: () => deleteJson('/api/settings/cloudflare-token'),
-    onSuccess: () => qc.invalidateQueries(),
-  });
-  const policy = useMutation({
-    mutationFn: (value: boolean) => putJson('/api/settings/security', { requirePasskeysForStaff: value }),
-    onSuccess: () => qc.invalidateQueries(),
-  });
-  const o = overview.data;
-
-  return (
-    <>
-      <Card>
-        <h2 className="hd text-[17px]">Require passkeys for staff</h2>
-        <p className="mt-1 text-text2">When on, staff with a passkey must use it to sign in, and staff without one must add one before continuing.</p>
-        {policy.isError ? <Notice tone="danger">{errorMessage(policy.error)}</Notice> : null}
-        <Button
-          className="mt-3"
-          variant={o?.security.requirePasskeysForStaff ? 'secondary' : 'primary'}
-          loading={policy.isPending}
-          onClick={() => policy.mutate(!o?.security.requirePasskeysForStaff)}
-        >
-          {o?.security.requirePasskeysForStaff ? 'Turn off' : 'Turn on'}
-        </Button>
-      </Card>
-      <Card>
-        <h2 className="hd text-[17px]">Turnstile bot protection</h2>
-        <p className="mt-1 text-text2">
-          {o?.turnstile.configured
-            ? `On${o.turnstile.source === 'env' ? ' (configured as a Worker secret)' : ''}.`
-            : 'Create a free widget in the Cloudflare dashboard (Turnstile → Add widget, mode “Invisible”) and paste its keys.'}
-        </p>
-        {o?.turnstile.source !== 'env' ? (
-          <form
-            className="mt-3 flex flex-col gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              saveTs.mutate();
-            }}
-          >
-            <Field label="Site key">{(p) => <Input {...p} required value={siteKey} onChange={(e) => setSiteKey(e.target.value)} />}</Field>
-            <Field label="Secret key">
-              {(p) => <Input {...p} required type="password" autoComplete="off" value={secret} onChange={(e) => setSecret(e.target.value)} />}
-            </Field>
-            {saveTs.isError ? <Notice tone="danger">{errorMessage(saveTs.error)}</Notice> : null}
-            {saveTs.isSuccess ? <Notice tone="ok">Saved. The sign-in form now uses Turnstile.</Notice> : null}
-            <Button type="submit" variant="secondary" loading={saveTs.isPending}>
-              Save keys
-            </Button>
-          </form>
-        ) : null}
-      </Card>
-      {o?.cloudflareToken ? (
-        <Card>
-          <h2 className="hd text-[17px]">Cloudflare API token</h2>
-          <p className="mt-1 text-text2">Saved (encrypted) for DNS records and the custom domain. Remove it once setup is done.</p>
-          {removeToken.isError ? <Notice tone="danger">{errorMessage(removeToken.error)}</Notice> : null}
-          <Button className="mt-3" variant="danger" loading={removeToken.isPending} onClick={() => removeToken.mutate()}>
-            Remove token
-          </Button>
-        </Card>
-      ) : null}
-    </>
-  );
-}
-
 function Security() {
-  const me = useMe();
   const clients = useQuery({ queryKey: ['clients', false], queryFn: () => getJson<{ clients: { id: string; name: string }[] }>('/api/clients') });
   return (
     <>
@@ -143,7 +61,6 @@ function Security() {
       <CalendarCard clients={clients.data?.clients ?? []} allowAll />
       <SessionsCard />
       <PasskeysCard />
-      {me.data?.user.role === 'owner' ? <OwnerSecurity /> : null}
     </>
   );
 }

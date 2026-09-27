@@ -139,7 +139,7 @@ function Clients() {
             <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <OrgMark name={c.name} />
               <div className="flex min-w-0 flex-1 flex-col">
-                <Link to="/workspace/clients/$clientId" params={{ clientId: c.id }} className="truncate font-medium text-text hover:text-acc-text hover:underline">
+                <Link to="/workspace/clients/$clientId" params={{ clientId: c.id }} className="truncate font-medium text-text hover:text-acc-text underline underline-offset-2">
                   {c.name}
                 </Link>
                 <span className="t-xs text-text2">

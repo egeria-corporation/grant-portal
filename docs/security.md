@@ -97,21 +97,69 @@ With a scanner bound, every new upload shows "Checking…" and can't be download
 
 ## Recovering access
 
-- **Someone lost their passkey while passkeys are required.** Until the Team page (M6) adds a button, remove that person's passkeys from the D1 console (Storage & Databases → D1 → your database → Console), using their email:
+- **Someone lost their passkey while passkeys are required.** An Owner opens **Settings → Team → Reset passkeys** for them. They then sign in with a magic link and add a new passkey.
+- **The only Owner lost their passkey.** Remove it from the D1 console (Storage & Databases → D1 → your database → Console), using their email:
 
   ```sql
   DELETE FROM passkeys WHERE user_id = (SELECT id FROM users WHERE email = 'name@yourfirm.com');
   ```
 
-  They then sign in with a magic link and add a new passkey. This works for the Owner too.
+  Then sign in with a magic link and add a new passkey.
+- **Locked out by the IP allowlist or domain restriction** (for example, after an office IP change). In the D1 console, clear both lists:
+
+  ```sql
+  UPDATE settings SET value_json = json_set(value_json, '$.staffIpAllowlist', json('[]'), '$.staffEmailDomains', json('[]')) WHERE key = 'security';
+  ```
 - **Moved to a custom domain.** Passkeys belong to the address they were created on. Add a new one after switching domains.
+
+## Owner controls
+
+Settings → Security ([`operations.md`](operations.md#security-settings)) sets the following, and the portal refuses a change that would lock out the Owner making it:
+- the staff email-domain restriction, enforced both when sign-in mail is sent and when a session starts, including passkey sign-in;
+- the staff IP allowlist, checked on every request against Cloudflare's `CF-Connecting-IP`;
+- session lengths and sign-in link lifetime;
+- data retention.
+
+These actions need a step-up (a passkey assertion, or a sign-in within the last 30 minutes) and are audited:
+- changing security settings, roles or passkeys;
+- the full data export and the audit-log export;
+- hard-deleting a client.
+
+## Attacker self-review (M6)
+
+We reviewed the v0.1 code as an attacker would, against the threat model in spec §7.7. What each threat meets:
+
+| Threat | What an attacker meets | Verified by |
+|---|---|---|
+| **Leaked or forwarded magic link** | 15-minute (configurable 5–60) single-use hashed tokens, consumed only by POST from the confirmation page. The session list with revoke, and a new-device email. | `magic-link.test.ts`, `sessions.test.ts` |
+| **Email enumeration** | Identical 202 answers; the email is sent after the response. Staff outside the allowed domains are treated like unknown addresses. | `magic-link.test.ts`, `admin.test.ts` |
+| **Brute-forcing the code** | 5 attempts per code, enforced atomically in D1. Per-IP and per-email rate limits. Optional Turnstile. | `magic-link.test.ts` |
+| **Cross-client access (IDOR)** | Client scoping in middleware on every route. Every route is listed in a generated test that calls it as each kind of actor, and calls nested routes with another client's IDs in both the path and the body. | `authz.test.ts` (every route) |
+| **Malicious upload** | Type checked by first bytes against an allowlist; HTML and SVG never accepted. Downloads as attachments, with no-sniff, a `default-src 'none'` CSP, and an optional scanner quarantine. | `files.test.ts`, `headers.test.ts` |
+| **Stolen staff session** | Configurable idle and absolute expiry, optional passkey requirement, and the IP allowlist. Step-up for sensitive actions. Revoke everywhere. | `sessions.test.ts`, `admin.test.ts` |
+| **Script injection** | React escaping everywhere, with no `innerHTML`. A nonce CSP with `strict-dynamic` and no `unsafe-inline`. Email templates are escaped. PDF text is escaped into 7-bit strings. CSV cells are defused against formula injection. | `http.test.ts`, `email.test.ts`, `funding.test.ts`, `admin.test.ts` |
+| **CSRF** | A double-submit token plus an Origin check on every write. Exempt only: the signed webhook and one-click unsubscribe endpoints. | `http.test.ts` |
+| **Server-side requests to attacker hosts** | Outbound calls go only to fixed hosts: Resend, the OpenGrants base URL from the committed spec (IDs are URL-encoded into one path segment), and Cloudflare's API. Listing URLs are stored if http(s), and never fetched. | code review, `funding.test.ts` |
+| **Data export or deletion by the wrong person** | Owner only, with a step-up. The client's name must be typed to confirm a delete. Both are audited. The export leaves out credentials and keeps EINs to their last four digits. | `admin.test.ts` |
+| **Public demo abused** | Off unless `DEMO_MODE` is set. Demo accounts are read-only and rate-limited, with no outbound mail and no invites, and the data resets nightly. | `demo-mode.test.ts` |
+| **Compromised fork / GitHub account** | Out of scope. Protect the GitHub account with 2FA, since pushes deploy. | — |
+| **Supply chain** | Committed lockfile, Dependabot updates, a small dependency set, and no build-time secrets. | CI |
+
+Findings fixed during the review:
+- The hard delete now also removes the sent-email log rows (addresses) of the anonymised users.
+- Staff sessions from outside the IP allowlist keep their cookie but act as signed out, so a colleague on the road isn't signed out for good.
+- The public demo is read-only, as spec §14 asks.
 
 ## Known limitations
 
 - **Copy-link invites** (used before your sending domain is verified) sign in whoever opens them. Share them over a channel you trust. They are single-use and expire after 72 hours. They're only issued for people who don't have an account yet; existing users are added directly or emailed.
 - **Rate limits are best-effort.** KV has no atomic counter, so a burst of simultaneous requests can slightly exceed a limit. The hard limits (single-use tokens, 5 code attempts, 10 setup-code attempts) are enforced atomically in D1.
-- **Turnstile is off** until you add keys (Security page). Rate limits apply either way.
-- **Restricting staff sign-in to an email domain**, the IP allowlist and session-length settings arrive with Settings → Security (M6).
+- **Turnstile is off** until you add keys (Settings → Security). Rate limits apply either way.
+- **New session lengths apply at the next sign-in.** Existing sessions keep the expiry they started with. To end them sooner, use "Sign out everywhere", or remove and re-add the person.
+- **The IP allowlist trusts Cloudflare's `CF-Connecting-IP`.** It protects the portal's own hostnames, which always run behind Cloudflare. It isn't a network firewall: sign-in emails are still sent, but the resulting session is refused.
+- **The audit log is never purged** (a database trigger blocks deletes). It records IDs and short labels, and the name of a hard-deleted client. Export and archive it if it grows too large for you.
+- **The data export is a plain ZIP**, so it must stay under 4 GB and 65,535 files. Above that, copy the R2 bucket with Cloudflare's tools.
+- **PDF exports use the standard PDF fonts.** Characters outside Western European scripts appear as `?`.
 - **Protect your GitHub account with 2FA.** Pushes to `main` of your fork deploy automatically.
 - **No malware scanning by default.** See "Scanning uploads" above.
 - **Uploads resume within a session.** An interrupted upload picks up where it stopped while the page stays open. After a reload, the file is uploaded again; the unfinished upload is cleaned up after 7 days.

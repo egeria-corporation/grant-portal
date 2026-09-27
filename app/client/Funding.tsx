@@ -53,7 +53,7 @@ export function SourceLine({ o }: { o: Pick<Opportunity, 'source' | 'url'> | Opp
       {o.url ? (
         <>
           {' · '}
-          <a href={o.url} target="_blank" rel="noopener noreferrer" className="text-acc-text hover:underline">
+          <a href={o.url} target="_blank" rel="noopener noreferrer" className="text-acc-text underline underline-offset-2">
             Funder listing
           </a>
         </>
@@ -98,7 +98,7 @@ export function PipelineBoard({
   const [now] = useState(() => Date.now());
   const uid = useId();
   return (
-    <div className="-mx-1 grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-3 overflow-x-auto px-1 pb-2" role="group" aria-label="Pipeline">
+    <div className="-mx-1 grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-3 overflow-x-auto px-1 pb-2" role="group" aria-label="Pipeline" tabIndex={0}>
       {BOARD_STAGES.map((stage) => {
         const col = items.filter((o) => o.stage === stage);
         return (

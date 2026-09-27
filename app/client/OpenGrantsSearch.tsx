@@ -148,7 +148,7 @@ export function OpenGrantsSearch({ clientId, savedIds, onAdded }: { clientId: st
                         {d.url ? (
                           <>
                             {' · '}
-                            <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-acc-text hover:underline">
+                            <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-acc-text underline underline-offset-2">
                               Funder listing
                             </a>
                           </>

@@ -120,7 +120,7 @@ export function FileRow({ file, actions }: { file: FileSummary; actions?: React.
           {blocked ? (
             <span className="truncate font-medium">{file.filename}</span>
           ) : (
-            <a href={fileUrl(file.id)} className="truncate font-medium text-text hover:text-acc-text hover:underline" download>
+            <a href={fileUrl(file.id)} className="truncate font-medium text-text hover:text-acc-text underline underline-offset-2" download>
               {file.filename}
             </a>
           )}

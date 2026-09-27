@@ -35,7 +35,7 @@ function Setup() {
       <AuthShell>
         <h1 className="hd text-[22px] leading-7">This portal is set up</h1>
         <p className="mt-2 text-text2">It has already been claimed by its Owner.</p>
-        <Link to="/signin" className="mt-5 inline-block font-medium text-acc-text hover:underline">
+        <Link to="/signin" className="mt-5 inline-block font-medium text-acc-text underline underline-offset-2">
           Sign in
         </Link>
       </AuthShell>

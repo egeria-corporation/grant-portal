@@ -59,7 +59,7 @@ export function DropZone({ state, onFiles, accept, hint }: { state: DropState; o
       onFiles([...e.dataTransfer.files]);
     },
   };
-  const hidden = <input ref={input} type="file" multiple accept={accept} className="sr-only" tabIndex={-1} onChange={(e) => onFiles([...(e.target.files ?? [])])} />;
+  const hidden = <input ref={input} type="file" multiple accept={accept} hidden aria-label="Choose files" tabIndex={-1} onChange={(e) => onFiles([...(e.target.files ?? [])])} />;
 
   if (state.kind === 'uploading' || state.kind === 'scanning') {
     return (
@@ -134,7 +134,7 @@ export function DropZone({ state, onFiles, accept, hint }: { state: DropState; o
       <span className="t-h4">{over ? 'Release to upload' : 'Drop files here'}</span>
       <span className="t-sm text-text2">
         or{' '}
-        <button type="button" className="font-medium text-acc-text hover:underline" onClick={pick}>
+        <button type="button" className="font-medium text-acc-text underline underline-offset-2" onClick={pick}>
           choose from your device
         </button>
       </span>
@@ -257,7 +257,7 @@ export function OpportunityCard({
         {opp.dueAt ? <DeadlineChip dueAt={opp.dueAt} now={now} /> : <span className="t-sm text-text2">Rolling / no deadline listed</span>}
         {opp.fit ? <FitScore score={opp.fit.score} label={opp.fit.label} /> : null}
         {opp.href ? (
-          <a href={opp.href} target="_blank" rel="noopener noreferrer" className="t-sm text-acc-text hover:underline">
+          <a href={opp.href} target="_blank" rel="noopener noreferrer" className="t-sm text-acc-text underline underline-offset-2">
             Funder listing
             <ExternalLink aria-hidden className="i ml-0.5 inline size-3.5" />
           </a>

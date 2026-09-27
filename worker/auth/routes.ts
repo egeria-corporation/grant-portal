@@ -15,7 +15,8 @@ import { clientIp, HttpError, keyedHash, normalizeEmail, parseJson, publicOrigin
 import { enforce, LIMITS } from '../lib/rate-limit';
 import { turnstileConfig, verifyTurnstile } from '../lib/turnstile';
 import { authOf, requireAuth, requireStaffAccount } from './guards';
-import { consumeCode, consumeLink, createLink, peekLink, SIGNIN_TTL_MS } from './magic';
+import { securityPolicy, staffEmailAllowed } from '../lib/security';
+import { consumeCode, consumeLink, createLink, peekLink } from './magic';
 import {
   authenticationOptions,
   registrationOptions,
@@ -33,10 +34,14 @@ const token = z.string().max(64);
 async function sendSignInLink(env: AppEnv, to: string, origin: string, ipHash: string, uaHash: string) {
   const user = await userByEmail(env, to);
   if (!user || user.disabled_at) return;
+  const policy = await securityPolicy(env);
+  // Staff outside the allowed email domains get nothing, like unknown addresses (spec §6.1).
+  if (user.kind === 'staff' && !staffEmailAllowed(policy, to)) return;
+  const ttlMs = policy.linkMinutes * 60_000;
   const link = await createLink(env, {
     email: to,
     purpose: 'signin',
-    ttlMs: SIGNIN_TTL_MS,
+    ttlMs,
     withCode: true,
     ipHash,
     uaHash,
@@ -45,7 +50,7 @@ async function sendSignInLink(env: AppEnv, to: string, origin: string, ipHash: s
   const rendered = await signInEmail(await loadEmailBrand(env, origin), {
     link: `${origin}/auth/verify?t=${link.token}`,
     code: link.code ?? '',
-    minutes: SIGNIN_TTL_MS / 60_000,
+    minutes: policy.linkMinutes,
   });
   await sendEmail(env, { to, template: 'magic_link', rendered, userId: user.id });
 }

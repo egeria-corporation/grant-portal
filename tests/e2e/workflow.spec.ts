@@ -184,3 +184,63 @@ test('consultant sends a funding report; the client pursues an opportunity', asy
   await tabs.getByRole('link', { name: 'Pipeline' }).click();
   await expect(page.getByRole('region', { name: 'Researching' }).getByText('Youth arts access grant')).toBeVisible();
 });
+
+/** WCAG 2.1 AA via axe: every rule, not just contrast. */
+async function axe(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  return results.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')} :: ${n.failureSummary?.split('\n')[1] ?? ''}`));
+}
+
+/** M6: axe on every portal screen and the sign-in screens (PLAN M6), plus a render check of the Owner settings. */
+test('portal and sign-in screens pass axe (WCAG 2.1 AA)', async ({ page, browser }) => {
+  const anon = await (await browser.newContext()).newPage();
+  await anon.goto('/signin');
+  await expect(anon.getByLabel('Email address')).toBeVisible();
+  expect(await axe(anon)).toEqual([]);
+  await anon.getByLabel('Email address').fill('nobody@example.org');
+  await anon.getByRole('button', { name: 'Email me a sign-in link' }).click();
+  await expect(anon.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  expect(await axe(anon)).toEqual([]);
+  await anon.goto('/auth/verify?t=not-a-real-token');
+  await expect(anon.locator('main, [role="main"], body').first()).toBeVisible();
+  await anon.waitForLoadState('networkidle');
+  expect(await axe(anon)).toEqual([]);
+
+  const client = await (await browser.newContext()).newPage();
+  await signInWithCode(client, 'dana@harborarts.example');
+  await expect(client).toHaveURL(/\/portal$/);
+  const nav = client.getByRole('navigation', { name: 'Main' });
+  const screens: [string, () => Promise<void>][] = [
+    ['home', async () => {}],
+    ['documents', () => nav.getByRole('link', { name: 'Documents' }).click()],
+    ['deliverables', () => nav.getByRole('link', { name: 'Deliverables' }).click()],
+    ['deliverable', () => client.getByRole('link', { name: 'Program narrative' }).click()],
+    ['funding', () => nav.getByRole('link', { name: 'Funding' }).click()],
+    ['report', () => client.getByRole('link', { name: /Spring funding picks/ }).click()],
+    ['messages', () => nav.getByRole('link', { name: 'Messages' }).click()],
+    ['updates', () => nav.getByRole('link', { name: 'Updates' }).click()],
+    ['profile', () => nav.getByRole('link', { name: 'Profile' }).click()],
+    ['security', () => nav.getByRole('link', { name: 'Security' }).click()],
+  ];
+  for (const [name, go] of screens) {
+    await go();
+    await client.waitForLoadState('networkidle');
+    await expect(client.locator('h1').first(), name).toBeVisible();
+    expect(await axe(client), name).toEqual([]);
+  }
+
+  // Owner settings screens render.
+  await signInWithCode(page, OWNER);
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings' }).click();
+  const tabs = page.getByRole('navigation', { name: 'Settings sections' });
+  for (const [tab, heading] of [
+    ['Security', 'Security'],
+    ['Team', 'Team'],
+    ['Audit log', 'Audit log'],
+    ['Data', 'Data'],
+    ['Brand', 'Brand'],
+  ] as const) {
+    await tabs.getByRole('link', { name: tab }).click();
+    await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+  }
+});

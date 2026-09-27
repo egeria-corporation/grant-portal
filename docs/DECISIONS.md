@@ -431,3 +431,72 @@ A changed deadline is written and noted on the client's timeline. A listing that
 
 ### D-074 Pipeline board without drag and drop
 Cards move with a stage menu on each card. That works by keyboard and screen reader, on phones, and needs no drag-and-drop dependency. The design's `KanbanCard` look is kept.
+
+## M6 — Hardening, docs, release
+
+### D-075 Settings → Security
+The `security` setting holds:
+- the passkey requirement;
+- staff email domains (subdomains included);
+- a staff IP/CIDR allowlist (IPv4 and IPv6, with IPv4-mapped addresses matched as IPv4);
+- session lengths: staff idle 1–24 h and absolute 1–30 d; client idle 1–30 d and absolute 1–90 d;
+- sign-in link lifetime (5–60 min);
+- retention.
+
+Absent fields default to the pre-M6 behaviour, so existing deployments are unchanged. Saving:
+- is partial and needs a step-up;
+- refuses (422 `would_lock_you_out`) a domain list that excludes the Owner's own address, or an allowlist that excludes their current IP.
+
+Where each rule applies:
+- **Domain rule:** checked when sign-in mail is sent (silently, like an unknown address), when a staff invite is created, and when any session starts, passkeys included.
+- **IP rule:** checked when a session starts and on every request. An out-of-list staff session is treated as signed out but its cookie is kept, so it works again from an allowed network.
+- **Client users:** never restricted by these rules.
+- **Session lengths:** apply to new sessions.
+
+Recovery from a lock-out is a documented D1 console statement (`docs/security.md`).
+
+### D-076 Team, audit log, export, hard delete, retention
+**Team:**
+- Owners change roles and the all-clients flag.
+- There's always at least one Owner, and the Owner can't remove themselves.
+- A role change revokes that person's sessions, apart from the Owner's current one.
+- Removal disables the account, deletes passkeys, feeds and assignments, and revokes sessions. Past work keeps pointing at the (disabled) user.
+- Passkey reset deletes all of someone's passkeys and signs them out.
+- Every one of these needs a step-up and is audited.
+
+**Audit log:**
+- Filterable by action family (`team` matches `team.*`), actor and time.
+- CSV export (step-up, audited) prefixes formula-like cells with `'`.
+- The log stays append-only. A trigger refuses deletes, so retention **does not** purge it; that's why `auditDays` was dropped during M6.
+
+**Export:** a streamed, stored (uncompressed) ZIP with data descriptors, so files stream from R2 without buffering.
+- It contains one JSON file per table, settings with every `*Enc` field stripped, all live files, and brand assets.
+- It excludes sessions, sign-in links, passkeys, WebAuthn challenges, device cookies, calendar-feed tokens, notifications, job bookkeeping and `ein_enc` (EINs go out as the last four digits).
+- Plain ZIP, not ZIP64: the writer fails rather than produce a broken archive over 4 GiB or 65,535 entries.
+
+**Hard delete:** Owner, step-up, and the client name typed exactly.
+- Removes the R2 prefix `clients/<id>/` and the client row, which cascades everything client-scoped, plus invites for the client.
+- Client users belonging to no other client are anonymised (`deleted-<id>@invalid`) and disabled rather than deleted, because rows in other tables may still reference them. Their sessions, passkeys, devices, feeds, notifications and sent-email log rows are removed.
+- The audit entry keeps the client's name.
+
+**Retention (daily cron):**
+- Deleted vault files lose their stored object once older than `deletedFilesDays` (default 30). The row stays so history still shows the file existed. Objects are purged within a 7-day catch-up window, so the job never rescans all of history.
+- Sent-email log rows go after `emailLogDays` (default 365).
+
+### D-077 Demo mode is read-only
+`DEMO_MODE=1` (a var, off by default and absent from `wrangler.jsonc`) turns a deployment into the public demo from spec §14.
+- **Entry:** `POST /api/demo-mode/session` signs a visitor in as a demo consultant (all clients) or a demo client admin, both `@demo.invalid`. It returns 404 when demo mode is off, 409 until the portal is claimed, and is rate-limited per IP.
+- **Read-only:** demo accounts get 403 `demo_read_only` on every write except sign-out and switching demo role. The spec says the demo is "read-only", and a writable public instance would let anyone publish content under the consultancy's brand for up to a day.
+- **Mail and uploads:** only the Owner's own sign-in mail is sent. Invites are refused, and uploads are capped at 2 MiB.
+- **Nightly reset:** hard-deletes every client (with files), ends demo sessions, and re-seeds the sample client.
+
+### D-078 Performance budget and accessibility gates
+- **Bundle budget:** `npm run build` runs `scripts/check-bundle.mjs`. For every JS chunk, it adds the gzipped sizes of the entry script, the stylesheet and the chunk's static-import closure, and fails above 200 KB. That's spec §13's route-tree budget, measured without a browser. The heaviest route was 156 KB at M6.
+- **Lighthouse:** stays a manual release step (`docs/release.md`); a headless Lighthouse run in CI would be slow and noisy.
+- **Accessibility:** the E2E suite runs axe with the WCAG 2.0/2.1 A and AA rule sets on every portal screen and on the sign-in screens. Fixes it forced:
+  - inline links are underlined;
+  - hidden file inputs are `hidden` and labelled;
+  - the scrollable pipeline board is focusable.
+
+### New dependencies (M6)
+None.

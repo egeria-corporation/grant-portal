@@ -224,7 +224,7 @@ function Alerts({ clientId }: { clientId: string }) {
                     {m.listing.url ? (
                       <>
                         {' · '}
-                        <a href={m.listing.url} target="_blank" rel="noopener noreferrer" className="text-acc-text hover:underline">
+                        <a href={m.listing.url} target="_blank" rel="noopener noreferrer" className="text-acc-text underline underline-offset-2">
                           Funder listing
                         </a>
                       </>

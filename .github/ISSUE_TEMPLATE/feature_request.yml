@@ -1,0 +1,25 @@
+name: Feature request
+description: An idea that would help consultants or their clients.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's hard today?
+      description: Describe the problem or the job you're trying to get done, before the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who is it for?
+      options:
+        - Owner / consultant
+        - Client users
+        - People deploying the portal
+    validations:
+      required: true
