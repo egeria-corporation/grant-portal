@@ -34,6 +34,7 @@ function Workspace() {
   const nav = [
     { to: '/workspace', label: 'Today', exact: true },
     { to: '/workspace/clients', label: 'Clients' },
+    { to: '/workspace/pipeline', label: 'Pipeline' },
     { to: '/workspace/templates', label: 'Templates' },
     ...(user.role === 'owner'
       ? [

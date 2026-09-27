@@ -1,7 +1,9 @@
 /** Client timeline (spec §5.2): everything that happened, newest first. */
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { STAGE_LABEL } from '@/client/Funding';
 import { getJson } from '@/lib/api';
+import type { Stage } from '@/lib/types';
 import { formatDateTime } from '@/lib/format';
 import { Button } from '@/ui/controls';
 
@@ -69,6 +71,30 @@ export function describe(e: Event): string {
       return 'sent a message';
     case 'demo.loaded':
       return 'loaded the demo data';
+    case 'email.delivered':
+      return `delivered an email (${s(p.template).replace(/[._]/g, ' ')})`;
+    case 'email.bounced':
+      return `could not deliver an email (${s(p.template).replace(/[._]/g, ' ')})`;
+    case 'update.sent':
+      return `sent the update ${s(p.title)}`;
+    case 'update.scheduled':
+      return `scheduled the update ${s(p.title)}`;
+    case 'opportunity.created':
+      return `added the opportunity ${s(p.title)}`;
+    case 'opportunity.updated':
+      return p.deadlineTo ? `saw a new deadline for ${s(p.title)}` : `updated ${s(p.title)}`;
+    case 'opportunity.stage_changed':
+      return p.to === 'none' ? `took ${s(p.title)} off the pipeline` : `moved ${s(p.title)} to ${STAGE_LABEL[p.to as Stage] ?? s(p.to)}`;
+    case 'opportunity.awarded':
+      return `marked ${s(p.title)} as awarded`;
+    case 'opportunity.deleted':
+      return `removed the opportunity ${s(p.title)}`;
+    case 'report.sent':
+      return `sent the funding report ${s(p.title)}`;
+    case 'report.response':
+      return `answered ${p.response === 'pursue' ? 'Pursue' : p.response === 'question' ? 'with a question' : 'Not now'} on ${s(p.title)}`;
+    case 'alert.matched':
+      return `found ${s(p.count)} new matches (${s(p.title)})`;
     default:
       return e.type;
   }

@@ -23,6 +23,9 @@ import { uploads, vault } from './files';
 import { createInvite } from './invites';
 import { messages, unreadCount } from './messages';
 import { listRequests, requests } from './requests';
+import { alertsApi, clientFundingApi } from './funding';
+import { opportunitiesApi } from './opportunities';
+import { reportsApi } from './reports';
 import { updatesApi } from './updates';
 
 export const CLIENT_STATUSES = ['onboarding', 'active', 'paused', 'archived'] as const;
@@ -185,9 +188,23 @@ async function overview(env: AppEnv, clientId: string, access: 'staff' | 'admin'
       .bind(clientId)
       .all<{ stage: string; n: number }>(),
   ]);
-  const latestUpdate = await env.DB.prepare("SELECT id, subject, intro, sent_at FROM updates WHERE client_id = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1")
-    .bind(clientId)
-    .first<{ id: string; subject: string; intro: string | null; sent_at: number }>();
+  const [latestUpdate, reports, grantDeadlines] = await Promise.all([
+    env.DB.prepare("SELECT id, subject, intro, sent_at FROM updates WHERE client_id = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1")
+      .bind(clientId)
+      .first<{ id: string; subject: string; intro: string | null; sent_at: number }>(),
+    env.DB.prepare(
+      `SELECT r.id, r.title, r.sent_at,
+         (SELECT COUNT(*) FROM report_items i WHERE i.report_id = r.id AND i.client_response IS NULL) AS unanswered
+        FROM reports r WHERE r.client_id = ? AND r.status = 'sent' ORDER BY r.sent_at DESC LIMIT 20`,
+    )
+      .bind(clientId)
+      .all<{ id: string; title: string; sent_at: number; unanswered: number }>(),
+    env.DB.prepare(
+      "SELECT id, title, deadline_at FROM opportunities WHERE client_id = ? AND stage IN ('researching', 'preparing') AND deadline_at > ? ORDER BY deadline_at LIMIT 10",
+    )
+      .bind(clientId, now - 86_400_000)
+      .all<{ id: string; title: string; deadline_at: number }>(),
+  ]);
   const client = access !== 'staff';
   const openItems = reqs
     .filter((r) => r.status === 'open')
@@ -197,6 +214,7 @@ async function overview(env: AppEnv, clientId: string, access: 'staff' | 'admin'
   const deadlines = [
     ...dels.filter((d) => d.dueAt && !['approved', 'done'].includes(d.status)).map((d) => ({ kind: 'deliverable' as const, id: d.id, title: d.title, dueAt: d.dueAt as number })),
     ...reqs.filter((r) => r.status === 'open' && r.dueAt).map((r) => ({ kind: 'request' as const, id: r.id, title: r.title, dueAt: r.dueAt as number })),
+    ...grantDeadlines.results.map((o) => ({ kind: 'opportunity' as const, id: o.id, title: o.title, dueAt: o.deadline_at })),
   ]
     .sort((a, b) => a.dueAt - b.dueAt)
     .slice(0, 10);
@@ -212,6 +230,9 @@ async function overview(env: AppEnv, clientId: string, access: 'staff' | 'admin'
       : null,
     pipeline: Object.fromEntries(pipeline.results.map((p) => [p.stage, p.n])) as Record<string, number>,
     latestUpdate: latestUpdate ? { id: latestUpdate.id, subject: latestUpdate.subject, intro: latestUpdate.intro?.slice(0, 280) ?? null, sentAt: latestUpdate.sent_at } : null,
+    /** Sent reports with opportunities the client hasn't answered (spec §6.2 "opportunities to answer"). */
+    reportsToAnswer: reports.results.filter((r) => r.unanswered > 0).map((r) => ({ id: r.id, title: r.title, unanswered: r.unanswered, sentAt: r.sent_at })),
+    latestReport: reports.results[0] ? { id: reports.results[0].id, title: reports.results[0].title, sentAt: reports.results[0].sent_at } : null,
   };
 }
 
@@ -442,7 +463,11 @@ export const clients = new Hono<AppBindings>()
   .route('/:clientId/requests', requests)
   .route('/:clientId/deliverables', deliverables)
   .route('/:clientId/messages', messages)
-  .route('/:clientId/updates', updatesApi);
+  .route('/:clientId/updates', updatesApi)
+  .route('/:clientId/opportunities', opportunitiesApi)
+  .route('/:clientId/reports', reportsApi)
+  .route('/:clientId/funding', clientFundingApi)
+  .route('/:clientId/alerts', alertsApi);
 
 export const demo = new Hono<AppBindings>()
   .use('*', requireOwner)

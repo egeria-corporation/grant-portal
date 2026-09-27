@@ -251,6 +251,15 @@ export const opportunities = sqliteTable(
     })
       .notNull()
       .default('none'),
+    /** grant | contract (OpenGrants lists both). */
+    kind: text('kind').notNull().default('grant'),
+    /** Consultant-only notes; report commentary lives on the report item. */
+    notes: text('notes'),
+    createdBy: text('created_by'),
+    stageChangedAt: integer('stage_changed_at'),
+    /** Last time the deadline was refreshed from the source listing. */
+    refreshedAt: integer('refreshed_at'),
+    updatedAt: integer('updated_at'),
     createdAt: createdAt(),
   },
   (t) => [index('opportunities_client_deadline_idx').on(t.clientId, t.deadlineAt)],
@@ -289,7 +298,11 @@ export const reports = sqliteTable(
       .default('draft'),
     sentAt: integer('sent_at'),
     scheduleId: text('schedule_id').references(() => schedules.id, { onDelete: 'set null' }),
+    /** Set on drafts a recurring report produced and that wait for review. */
+    pendingReview: integer('pending_review', { mode: 'boolean' }).notNull().default(false),
+    sentBy: text('sent_by'),
     createdBy: text('created_by'),
+    updatedAt: integer('updated_at'),
     createdAt: createdAt(),
   },
   (t) => [index('reports_client_created_idx').on(t.clientId, t.createdAt)],
@@ -509,8 +522,36 @@ export const alerts = sqliteTable(
     scheduleId: text('schedule_id').references(() => schedules.id, { onDelete: 'set null' }),
     lastRunAt: integer('last_run_at'),
     lastResultIdsJson: text('last_result_ids_json'),
+    name: text('name'),
+    /** review: new matches queue for the consultant; report: each run drafts a funding report. */
+    mode: text('mode').notNull().default('review'),
+    /** Last run's outcome: ok | skipped_budget | error. */
+    lastStatus: text('last_status'),
+    createdBy: text('created_by'),
+    createdAt: integer('created_at'),
   },
   (t) => [index('alerts_client_idx').on(t.clientId)],
+);
+
+/** New results from alert runs, waiting for the consultant (spec §5.7 review queue). */
+export const alertMatches = sqliteTable(
+  'alert_matches',
+  {
+    id: id(),
+    alertId: text('alert_id')
+      .notNull()
+      .references(() => alerts.id, { onDelete: 'cascade' }),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    ogId: text('og_id').notNull(),
+    /** The mapped opportunity, as shown in the queue. */
+    dataJson: text('data_json').notNull(),
+    status: text('status', { enum: ['new', 'added', 'dismissed'] }).notNull().default('new'),
+    opportunityId: text('opportunity_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('alert_matches_client_status_idx').on(t.clientId, t.status), uniqueIndex('alert_matches_alert_og_uq').on(t.alertId, t.ogId)],
 );
 
 export const emails = sqliteTable(

@@ -4,7 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { CircleCheck, ClipboardList, FileCheck2, MessagesSquare } from 'lucide-react';
+import { CircleCheck, ClipboardList, FileCheck2, MessagesSquare, Sparkles } from 'lucide-react';
 import { usePortalClient } from '@/client/portalClient';
 import { getJson } from '@/lib/api';
 import { formatDate, timeAgo } from '@/lib/format';
@@ -41,7 +41,7 @@ function PortalHome() {
   if (!isPending && !client) {
     return <EmptyState icon={ClipboardList} title="You’re all set">{firm} hasn’t added you to an organization yet.</EmptyState>;
   }
-  const attention = o ? o.openItems.length + o.awaitingDecision.length + o.owedByCaller.length + (o.unreadMessages ? 1 : 0) : 0;
+  const attention = o ? o.openItems.length + o.awaitingDecision.length + o.owedByCaller.length + o.reportsToAnswer.length + (o.unreadMessages ? 1 : 0) : 0;
   const stages = o?.pipeline ?? {};
 
   return (
@@ -73,6 +73,16 @@ function PortalHome() {
             ))}
             {o.owedByCaller.map((d) => (
               <Row key={d.id} icon={FileCheck2} to="/portal/deliverables/$deliverableId" params={{ deliverableId: d.id }} title={d.title} detail={d.dueAt ? `Due ${formatDate(d.dueAt)}` : 'Requested by your consultant'} />
+            ))}
+            {o.reportsToAnswer.map((r) => (
+              <Row
+                key={r.id}
+                icon={Sparkles}
+                to="/portal/reports/$reportId"
+                params={{ reportId: r.id }}
+                title={r.title}
+                detail={`${r.unanswered} opportunit${r.unanswered === 1 ? 'y' : 'ies'} to answer: Pursue or Not now`}
+              />
             ))}
             {o.unreadMessages ? (
               <Row icon={MessagesSquare} to="/portal/messages" title={`${o.unreadMessages} new message${o.unreadMessages === 1 ? '' : 's'}`} detail={`From ${firm}`} />
@@ -138,7 +148,10 @@ function PortalHome() {
           </h2>
           <PipelineMini counts={[stages.researching ?? 0, stages.preparing ?? 0, stages.submitted ?? 0, stages.awarded ?? 0]} />
           <p className="t-sm text-text2">
-            {stages.researching ?? 0} researching · {stages.preparing ?? 0} preparing · {stages.submitted ?? 0} submitted · {stages.awarded ?? 0} awarded
+            {stages.researching ?? 0} researching · {stages.preparing ?? 0} preparing · {stages.submitted ?? 0} submitted · {stages.awarded ?? 0} awarded ·{' '}
+            <Link to="/portal/reports" className="text-acc-text hover:underline">
+              See it
+            </Link>
           </p>
         </section>
       ) : null}

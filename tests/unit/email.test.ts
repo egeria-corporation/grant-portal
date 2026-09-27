@@ -9,7 +9,10 @@ import { SAMPLE_BRANDS, type SampleBrand } from '../../shared/theme/tokens';
 import { inviteEmail, newDeviceEmail, signInEmail } from '../../worker/email/templates/auth';
 import { sampleEmailBrand } from '../../worker/email/templates/brand';
 import {
+  alertMatchesEmail,
   decisionEmail,
+  fundingReportEmail,
+  reportResponseEmail,
   digestEmail,
   documentRequestEmail,
   newMessageEmail,
@@ -45,6 +48,38 @@ const templates: Record<string, (b: ReturnType<typeof sampleEmailBrand>) => Prom
     }),
   digest: (b) =>
     digestEmail(b, { period: 'daily', groups: [{ client: 'Riverbend Pantry', items: [{ title: 'Message from Dana', detail: 'See attached' }] }], url: 'https://portal.example.org/workspace', footer }),
+  'funding-report': (b) =>
+    fundingReportEmail(b, {
+      title: 'Spring funding picks',
+      intro: 'Three strong fits this month.',
+      count: 7,
+      items: [
+        { title: 'Youth arts access grant', detail: 'City Arts Council, due Mar 1' },
+        { title: 'Capacity building fund', detail: 'Harbor Community Foundation' },
+      ],
+      url: 'https://portal.example.org/portal/reports/rpt_x',
+      footer,
+    }),
+  'report-response': (b) =>
+    reportResponseEmail(b, {
+      client: 'Riverbend Pantry',
+      by: 'Dana',
+      opportunity: 'Youth arts access grant',
+      response: 'pursue',
+      comment: null,
+      url: 'https://portal.example.org/workspace/clients/cli_x/reports/rpt_x',
+      footer,
+    }),
+  'alert-matches': (b) =>
+    alertMatchesEmail(b, {
+      client: 'Riverbend Pantry',
+      alert: 'Weekly new matches',
+      count: 3,
+      items: [{ title: 'Food security grant', detail: 'State Dept. of Agriculture' }],
+      draft: false,
+      url: 'https://portal.example.org/workspace/clients/cli_x/funding',
+      footer,
+    }),
 };
 
 for (const name of Object.keys(SAMPLE_BRANDS) as SampleBrand[]) {

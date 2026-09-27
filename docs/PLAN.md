@@ -72,13 +72,14 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [x] Email snapshots for 3 brands (`tests/unit/__snapshots__/email/`)
 
 ## M5 — Funding reports & OpenGrants
-- [ ] Manual opportunities, CSV import, report builder, preview toggle, client responses, Pursue → pipeline (+ template)
-- [ ] Pipeline board per client and cross-client
-- [ ] `FundingProvider` + OpenGrants impl from generated client; mapping file; KV cache 6h/24h/7d; budget meter; low-budget mode; fallback
-- [ ] Recurring alerts/reports + review queue
-- [ ] Branded PDF export (approach in DECISIONS)
-- [ ] Attribution per §10.5
-- [ ] Tests with mock provider; live smoke test gated on `OPENGRANTS_API_KEY`
+- [x] Manual opportunities, CSV import, report builder, preview toggle, client responses, Pursue → pipeline (+ template) (D-069, D-070, D-073)
+- [x] Pipeline board per client and cross-client (D-074)
+- [x] `FundingProvider` + OpenGrants impl from generated client; mapping file; KV cache 6h/24h/7d; budget meter; low-budget mode; fallback (D-065–D-067)
+- [x] Recurring alerts/reports + review queue; daily deadline refresh (D-071, D-072)
+- [x] Branded PDF export (D-068)
+- [x] Attribution per §10.5 (D-069)
+- [x] Tests with mock provider; live smoke test gated on `OPENGRANTS_API_KEY`
+- [x] Email templates: funding report, report response, alert matches (snapshots for 3 brands)
 
 ## M6 — Hardening, docs, release
 - [ ] Settings > Security (staff email-domain restriction, IP allowlist, session length; D-031); Team page (roles, remove passkeys); audit log viewer/export; data export ZIP; hard delete client; retention purge; step-up on export/delete

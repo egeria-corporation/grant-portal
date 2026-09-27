@@ -12,7 +12,7 @@ An open-source, white-label client portal for grant consultants. It runs in your
 - A **Resend API key** — [resend.com/api-keys](https://resend.com/api-keys). This sends sign-in links and client email.
 - A GitHub (or GitLab) account. The Deploy button copies this repository into it so you own your copy and can take updates.
 
-Optional: an **OpenGrants API key** adds grant search, matching, and funding alerts. The portal works fully without it.
+Optional: an **OpenGrants API key** adds grant search, matching, and funding alerts. The portal works fully without it. See [`docs/opengrants.md`](docs/opengrants.md).
 
 ## Deploy
 

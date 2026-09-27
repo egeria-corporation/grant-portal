@@ -22,6 +22,7 @@ function Portal() {
         { to: '/portal', label: 'Home', exact: true },
         { to: '/portal/documents', label: 'Documents' },
         { to: '/portal/deliverables', label: 'Deliverables' },
+        { to: '/portal/reports', label: 'Funding' },
         { to: '/portal/messages', label: 'Messages' },
         { to: '/portal/updates', label: 'Updates' },
         { to: '/portal/profile', label: 'Profile' },

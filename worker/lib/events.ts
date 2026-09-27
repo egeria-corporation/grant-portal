@@ -33,7 +33,15 @@ export type EventType =
   | 'email.delivered'
   | 'email.bounced'
   | 'update.sent'
-  | 'update.scheduled';
+  | 'update.scheduled'
+  | 'opportunity.created'
+  | 'opportunity.updated'
+  | 'opportunity.stage_changed'
+  | 'opportunity.awarded'
+  | 'opportunity.deleted'
+  | 'report.sent'
+  | 'report.response'
+  | 'alert.matched';
 
 export interface EventInput {
   clientId: string;

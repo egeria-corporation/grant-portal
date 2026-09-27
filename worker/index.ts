@@ -22,6 +22,8 @@ import { system } from './api/system';
 import { team } from './api/team';
 import { templates } from './api/deliverables';
 import { today } from './api/today';
+import { fundingApi } from './api/funding';
+import { pipelineApi } from './api/opportunities';
 import { downloads } from './files/download';
 import { webhooks } from './api/webhooks';
 import { calendarFeeds, ics } from './api/calendar';
@@ -31,6 +33,7 @@ import { auth } from './auth/routes';
 import { brand } from './brand/routes';
 import { loadSession } from './auth/session';
 import type { AppBindings, AppEnv } from './env';
+import { FUNDING_HTTP, FundingError } from './funding/provider';
 import { HttpError } from './lib/http';
 import { serveAsset } from './html';
 import { handleQueue, handleScheduled } from './jobs';
@@ -86,6 +89,8 @@ app.route('/api/demo', demo);
 app.route('/api/portal', portal);
 app.route('/api/system', system);
 app.route('/api/today', today);
+app.route('/api/funding', fundingApi);
+app.route('/api/pipeline', pipelineApi);
 app.route('/api/templates', templates);
 app.route('/f', downloads);
 app.route('/webhooks', webhooks);
@@ -104,6 +109,10 @@ app.onError((err, c) => {
     const headers: Record<string, string> = {};
     if (err.status === 429 && typeof err.extra.retryAfterSec === 'number') headers['Retry-After'] = String(err.extra.retryAfterSec);
     return c.json({ error: err.code, ...err.extra }, err.status, headers);
+  }
+  if (err instanceof FundingError) {
+    const m = FUNDING_HTTP[err.code];
+    return c.json({ error: m.error }, m.status);
   }
   if (err instanceof SecretUnavailableError) {
     return c.json({ error: 'initialising' }, 503, { 'Retry-After': '5' });

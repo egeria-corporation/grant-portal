@@ -82,6 +82,13 @@ With a scanner bound, every new upload shows "Checking…" and can't be download
 - **Bounces and complaints.** Delivery events from Resend are accepted only with a valid signature and a recent timestamp, and each event is applied once. A hard bounce or complaint stops non-essential email to that address until the person turns it back on from their profile.
 - **Calendar feeds** use a random 256-bit token in the URL; only its hash is stored. Anyone with the URL can read the calendar (that's how calendar apps subscribe), so feeds can be revoked, and access is re-checked on every fetch: someone removed from a client stops seeing its dates.
 
+## Funding data
+
+- **Who sees what.** Client users see only their own pipeline and the reports they were sent. Consultant notes, drafts, the data source, alert matches and the OpenGrants ID never reach them. Every opportunity, report, alert and match route is scoped to one client and covered by the generated IDOR test.
+- **Links.** Listing URLs are stored only if they are `http(s)` (manual entry, CSV and OpenGrants alike). Links to them open with `rel="noopener noreferrer"`.
+- **The PDF.** It is built on the server from escaped text, with no scripts, forms, or remote resources. It carries only what the client sees in the portal, and it's served with `Content-Disposition: attachment` and `no-store`.
+- **The OpenGrants key.** It is a Worker secret, or stored encrypted with the data key. It's sent only to the API host in the committed spec, never reaches the browser, and isn't logged.
+
 ## Secrets and sensitive data
 
 - `SESSION_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first boot if you leave them blank. They're kept in KV, and the Owner sees a banner recommending you move them to Worker secrets.

@@ -26,6 +26,9 @@ const TABS = [
   { to: '/workspace/clients/$clientId/deliverables', label: 'Deliverables' },
   { to: '/workspace/clients/$clientId/messages', label: 'Messages' },
   { to: '/workspace/clients/$clientId/updates', label: 'Updates' },
+  { to: '/workspace/clients/$clientId/reports', label: 'Reports' },
+  { to: '/workspace/clients/$clientId/pipeline', label: 'Pipeline' },
+  { to: '/workspace/clients/$clientId/funding', label: 'Funding' },
   { to: '/workspace/clients/$clientId/people', label: 'People' },
   { to: '/workspace/clients/$clientId/timeline', label: 'Timeline' },
 ] as const;

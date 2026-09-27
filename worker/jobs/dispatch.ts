@@ -56,12 +56,20 @@ export async function dispatch(env: AppEnv, now: number): Promise<void> {
   }
 }
 
+/**
+ * Alert runs per 15-minute tick. The rest stay due for the next tick, so a
+ * dozen clients' Monday alerts spread out instead of bursting (spec §10.4).
+ */
+export const ALERTS_PER_TICK = 3;
+
 /** Queues each due schedule once and moves it to its next run. */
 export async function dueSchedules(env: AppEnv, now: number): Promise<void> {
-  const due = await env.DB.prepare('SELECT id, rrule, timezone, next_run_at, created_at FROM schedules WHERE enabled = 1 AND next_run_at <= ? LIMIT 100')
+  const due = await env.DB.prepare('SELECT id, kind, rrule, timezone, next_run_at, created_at FROM schedules WHERE enabled = 1 AND next_run_at <= ? ORDER BY next_run_at LIMIT 100')
     .bind(now)
-    .all<{ id: string; rrule: string; timezone: string | null; next_run_at: number; created_at: number }>();
+    .all<{ id: string; kind: string; rrule: string; timezone: string | null; next_run_at: number; created_at: number }>();
+  let alerts = 0;
   for (const s of due.results) {
+    if (s.kind === 'alert' && ++alerts > ALERTS_PER_TICK) continue;
     await enqueue(env, { kind: 'schedule.run', key: `${s.id}:${s.next_run_at}`, scheduleId: s.id, runAt: s.next_run_at });
     let next: number | null = null;
     if (s.rrule) {

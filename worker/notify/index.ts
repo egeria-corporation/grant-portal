@@ -16,9 +16,14 @@ import { isDev } from '../env';
 import { canEmailOthers, sendEmail } from '../email';
 import { loadEmailBrand, type EmailBrand } from '../email/templates/brand';
 import {
+  alertMatchesEmail,
   decisionEmail,
+  fundingReportEmail,
+  type FundingLine,
+  reportResponseEmail,
   digestEmail,
   documentRequestEmail,
+  formatDay,
   type Footer,
   newMessageEmail,
   reminderEmail,
@@ -63,7 +68,11 @@ export type NotificationKind =
   | 'deadline.countdown'
   | 'message'
   | 'update'
-  | 'update.review';
+  | 'update.review'
+  | 'report'
+  | 'report.response'
+  | 'report.review'
+  | 'alert.matches';
 
 export const CATEGORY: Record<NotificationKind, Category> = {
   'request.created': 'transactional',
@@ -75,6 +84,10 @@ export const CATEGORY: Record<NotificationKind, Category> = {
   message: 'activity',
   update: 'updates',
   'update.review': 'activity',
+  report: 'updates',
+  'report.response': 'activity',
+  'report.review': 'activity',
+  'alert.matches': 'activity',
 };
 
 interface Recipient {
@@ -234,8 +247,17 @@ function pathFor(kind: NotificationKind, staff: boolean, clientId: string, paylo
       return staff ? `${base}/updates` : base;
     case 'deadline.countdown':
       return staff ? base : '/portal';
+    case 'report':
+    case 'report.response':
+    case 'report.review':
+      return `${base}/reports/${str(payload.reportId)}`;
+    case 'alert.matches':
+      return `${base}/funding`;
   }
 }
+
+const lines = (v: unknown): FundingLine[] =>
+  Array.isArray(v) ? (v as FundingLine[]).filter((l) => typeof l?.title === 'string').slice(0, 5).map((l) => ({ title: l.title, ...(l.detail ? { detail: String(l.detail) } : {}) })) : [];
 
 async function renderNotification(env: AppEnv, brand: EmailBrand, n: NotificationRow, user: Recipient, tz: string): Promise<{ rendered: Rendered; headers: Record<string, string> } | null> {
   const payload = n.payload_json ? (JSON.parse(n.payload_json) as Record<string, unknown>) : {};
@@ -360,6 +382,56 @@ async function renderNotification(env: AppEnv, brand: EmailBrand, n: Notificatio
       });
       return { rendered, headers };
     }
+    case 'report': {
+      const r = await env.DB.prepare("SELECT title, intro_md FROM reports WHERE id = ? AND client_id = ? AND status = 'sent'")
+        .bind(str(payload.reportId), clientId)
+        .first<{ title: string; intro_md: string | null }>();
+      if (!r) return null;
+      const items = await env.DB.prepare(
+        `SELECT o.title, o.funder_name, o.deadline_at FROM report_items i JOIN opportunities o ON o.id = i.opportunity_id
+          WHERE i.report_id = ? AND o.client_id = ? ORDER BY i.position`,
+      )
+        .bind(str(payload.reportId), clientId)
+        .all<{ title: string; funder_name: string | null; deadline_at: number | null }>();
+      const rendered = await fundingReportEmail(brand, {
+        title: r.title,
+        intro: r.intro_md,
+        count: items.results.length,
+        items: items.results.slice(0, 5).map((o) => ({
+          title: o.title,
+          detail: [o.funder_name, o.deadline_at ? `due ${formatDay(o.deadline_at, tz)}` : null].filter(Boolean).join(', ') || undefined,
+        })),
+        url,
+        footer,
+      });
+      return { rendered, headers };
+    }
+    case 'report.response': {
+      const response = payload.response === 'pursue' || payload.response === 'question' ? payload.response : 'not_now';
+      const rendered = await reportResponseEmail(brand, {
+        client: clientName || 'A client',
+        by: str(payload.by) || 'Your client',
+        opportunity: str(payload.title),
+        response,
+        comment: str(payload.comment) || null,
+        url,
+        footer,
+      });
+      return { rendered, headers };
+    }
+    case 'report.review':
+    case 'alert.matches': {
+      const rendered = await alertMatchesEmail(brand, {
+        client: clientName || 'a client',
+        alert: str(payload.alertName) || 'Funding alert',
+        count: num(payload.count) ?? 0,
+        items: lines(payload.items),
+        draft: n.kind === 'report.review',
+        url,
+        footer,
+      });
+      return { rendered, headers };
+    }
   }
 }
 
@@ -417,6 +489,15 @@ async function digestLine(env: AppEnv, n: NotificationRow): Promise<{ title: str
     }
     case 'update.review':
       return { title: `Scheduled update ready for review`, detail: str(p.subject) };
+    case 'report.response':
+      return {
+        title: `${str(p.by) || 'Client'}: ${p.response === 'pursue' ? 'Pursue' : p.response === 'question' ? 'Question' : 'Not now'} on ${str(p.title)}`,
+        detail: str(p.comment) || undefined,
+      };
+    case 'alert.matches':
+      return { title: `${num(p.count) ?? 0} new funding matches`, detail: str(p.alertName) || undefined };
+    case 'report.review':
+      return { title: `Report draft ready for review`, detail: str(p.alertName) || undefined };
     default:
       return null;
   }

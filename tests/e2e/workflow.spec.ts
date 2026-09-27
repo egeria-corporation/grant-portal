@@ -6,7 +6,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-import { lastMailTo, OWNER, signInWithCode } from './helpers';
+import { lastMailTo, OWNER, outboxSize, signInWithCode } from './helpers';
 
 const PDF = Buffer.from('%PDF-1.7\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n');
 const DOCS = ['Latest Form 990', 'W-9', 'Board of directors list'];
@@ -105,4 +105,82 @@ test('client uploads three documents and approves a deliverable', async ({ page,
   expect(mail.subject).toBe('Your April update');
   expect(mail.text).toContain('Thanks for the documents.');
   expect(violations).toEqual([]);
+});
+
+/**
+ * M5 critical path, without OpenGrants: the consultant builds a funding report
+ * by hand and sends it; the client pursues one opportunity and asks about
+ * another; the pursued one lands on the pipeline.
+ */
+test('consultant sends a funding report; the client pursues an opportunity', async ({ page, browser }) => {
+  await signInWithCode(page, OWNER);
+  await expect(page).toHaveURL(/\/workspace$/);
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Clients' }).click();
+  await page.getByRole('link', { name: 'Harbor Arts Collective' }).click();
+  const tabs = page.getByRole('navigation', { name: 'Client sections' });
+
+  await tabs.getByRole('link', { name: 'Funding' }).click();
+  await expect(page.getByText(/OpenGrants, which isn’t connected/)).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Reports' }).click();
+  await page.getByRole('button', { name: 'New report' }).click();
+  await page.getByLabel('Title').fill('Spring funding picks');
+  await page.getByRole('button', { name: 'Create draft' }).click();
+  await expect(page.getByRole('heading', { name: 'Spring funding picks' })).toBeVisible();
+
+  for (const [title, funder] of [
+    ['Youth arts access grant', 'City Arts Council'],
+    ['Capacity building fund', 'Harbor Community Foundation'],
+  ] as const) {
+    await page.getByRole('radio', { name: 'By hand' }).click();
+    const form = page.getByRole('region', { name: 'Add opportunities' });
+    await form.getByLabel('Title').fill(title);
+    await form.getByLabel('Funder').fill(funder);
+    await form.getByLabel('Listing URL').fill('https://funder.example.org/listing');
+    await form.getByLabel('Deadline').fill('2027-03-01');
+    await form.getByLabel('Amount up to').fill('25000');
+    await form.getByRole('button', { name: 'Add to report' }).click();
+    await expect(page.getByRole('region', { name: 'Opportunities' }).getByText(title)).toBeVisible();
+  }
+  await page.getByLabel('Tag for Youth arts access grant').selectOption('recommended');
+  await page.getByLabel('Your note on Youth arts access grant').fill('Strong fit: they fund youth arts in your county.');
+  await page.getByLabel('Your note on Youth arts access grant').blur();
+  await page.getByRole('button', { name: 'Move Capacity building fund up' }).click();
+  await page.getByRole('radio', { name: 'Client preview' }).click();
+  await expect(page.getByText('Strong fit: they fund youth arts in your county.')).toBeVisible();
+  const before = await outboxSize(page.request);
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByText(/^Sent /)).toBeVisible();
+  const mail = await lastMailTo(page.request, 'dana@harborarts.example', before);
+  expect(mail.subject).toContain('Spring funding picks');
+
+  // The client answers in the portal.
+  const clientCtx = await browser.newContext();
+  const client = await clientCtx.newPage();
+  await signInWithCode(client, 'dana@harborarts.example');
+  await expect(client).toHaveURL(/\/portal$/);
+  await client.getByRole('link', { name: /Spring funding picks/ }).click();
+  await expect(client.getByRole('heading', { name: 'Spring funding picks' })).toBeVisible();
+  expect(await contrast(client)).toEqual([]);
+  const cards = client.locator('article.opp');
+  await expect(cards.first()).toContainText('Capacity building fund');
+  const youth = cards.filter({ hasText: 'Youth arts access grant' });
+  await youth.getByRole('button', { name: 'Pursue' }).click();
+  await expect(youth.getByText(/You chose to pursue this/)).toBeVisible();
+  const capacity = cards.filter({ hasText: 'Capacity building fund' });
+  await capacity.getByRole('button', { name: 'Ask a question' }).click();
+  await capacity.getByLabel(/Your question about/).fill('Does general operating support count?');
+  await capacity.getByRole('button', { name: 'Send question' }).click();
+  await expect(capacity.getByText(/You asked/)).toBeVisible();
+  await client.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Funding' }).click();
+  await expect(client.getByRole('region', { name: 'Researching' }).getByText('Youth arts access grant')).toBeVisible();
+  expect(await contrast(client)).toEqual([]);
+  await clientCtx.close();
+
+  // The consultant sees the answers and the pipeline.
+  await page.reload();
+  await expect(page.getByText('“Does general operating support count?”')).toBeVisible();
+  await tabs.getByRole('link', { name: 'Pipeline' }).click();
+  await expect(page.getByRole('region', { name: 'Researching' }).getByText('Youth arts access grant')).toBeVisible();
 });

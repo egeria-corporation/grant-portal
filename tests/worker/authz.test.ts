@@ -145,6 +145,40 @@ const POLICY: Record<string, Policy> = {
   'DELETE /api/demo': 'owner',
   'GET /api/portal/home': 'client',
   'GET /api/system/secrets': 'owner',
+  'GET /api/clients/:clientId/opportunities': 'clientScoped',
+  'POST /api/clients/:clientId/opportunities': 'clientScopedStaff',
+  'POST /api/clients/:clientId/opportunities/import': 'clientScopedStaff',
+  'POST /api/clients/:clientId/opportunities/from-opengrants': 'clientScopedStaff',
+  'GET /api/clients/:clientId/opportunities/:opportunityId': 'clientScoped',
+  'PATCH /api/clients/:clientId/opportunities/:opportunityId': 'clientScopedStaff',
+  'DELETE /api/clients/:clientId/opportunities/:opportunityId': 'clientScopedStaff',
+  'GET /api/pipeline': 'staff',
+  'GET /api/clients/:clientId/reports': 'clientScoped',
+  'POST /api/clients/:clientId/reports': 'clientScopedStaff',
+  'GET /api/clients/:clientId/reports/:reportId': 'clientScoped',
+  'PATCH /api/clients/:clientId/reports/:reportId': 'clientScopedStaff',
+  'DELETE /api/clients/:clientId/reports/:reportId': 'clientScopedStaff',
+  'POST /api/clients/:clientId/reports/:reportId/items': 'clientScopedStaff',
+  'PATCH /api/clients/:clientId/reports/:reportId/items/:opportunityId': 'clientScopedStaff',
+  'DELETE /api/clients/:clientId/reports/:reportId/items/:opportunityId': 'clientScopedStaff',
+  'PUT /api/clients/:clientId/reports/:reportId/order': 'clientScopedStaff',
+  'POST /api/clients/:clientId/reports/:reportId/send': 'clientScopedStaff',
+  'POST /api/clients/:clientId/reports/:reportId/items/:opportunityId/respond': 'clientScoped',
+  'GET /api/clients/:clientId/reports/:reportId/pdf': 'clientScoped',
+  'POST /api/clients/:clientId/funding/match': 'clientScopedStaff',
+  'GET /api/clients/:clientId/alerts': 'clientScopedStaff',
+  'POST /api/clients/:clientId/alerts': 'clientScopedStaff',
+  'PATCH /api/clients/:clientId/alerts/:alertId': 'clientScopedStaff',
+  'DELETE /api/clients/:clientId/alerts/:alertId': 'clientScopedStaff',
+  'POST /api/clients/:clientId/alerts/:alertId/run': 'clientScopedStaff',
+  'GET /api/clients/:clientId/alerts/matches': 'clientScopedStaff',
+  'POST /api/clients/:clientId/alerts/matches/:matchId/add': 'clientScopedStaff',
+  'POST /api/clients/:clientId/alerts/matches/:matchId/dismiss': 'clientScopedStaff',
+  'GET /api/funding/status': 'staff',
+  'GET /api/funding/search': 'staff',
+  'GET /api/funding/listings/:kind/:ogId': 'staff',
+  'GET /api/funding/funders': 'staff',
+  'GET /api/funding/funders/:funderId': 'staff',
 };
 
 /** Concrete routes from the Hono router, minus middleware and the SPA/404 fallbacks. */
@@ -174,6 +208,10 @@ interface Fixture {
   versionId: string;
   updateId: string;
   scheduleId: string;
+  opportunityId: string;
+  reportId: string;
+  alertId: string;
+  matchId: string;
 }
 
 async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
@@ -187,6 +225,10 @@ async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
     versionId: newId('dvv'),
     updateId: newId('upd'),
     scheduleId: newId('sch'),
+    opportunityId: newId('opp'),
+    reportId: newId('rpt'),
+    alertId: newId('alr'),
+    matchId: newId('alm'),
   };
   const file = (id: string, shared: number) =>
     testEnv.DB.prepare(
@@ -214,6 +256,31 @@ async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
     testEnv.DB.prepare("INSERT INTO updates (id, client_id, subject, blocks_json, status, created_at) VALUES (?, ?, 'Update', '[]', 'pending_review', ?)").bind(
       f.updateId,
       clientId,
+      now,
+    ),
+  ]);
+  const alertSchedule = newId('sch');
+  await testEnv.DB.batch([
+    testEnv.DB.prepare(
+      "INSERT INTO opportunities (id, client_id, source, title, stage, created_at) VALUES (?, ?, 'manual', 'Community grant', 'researching', ?)",
+    ).bind(f.opportunityId, clientId, now),
+    testEnv.DB.prepare("INSERT INTO reports (id, client_id, title, status, sent_at, created_at) VALUES (?, ?, 'Report', 'sent', ?, ?)").bind(f.reportId, clientId, now, now),
+    testEnv.DB.prepare('INSERT INTO report_items (report_id, opportunity_id, position) VALUES (?, ?, 0)').bind(f.reportId, f.opportunityId),
+    testEnv.DB.prepare(
+      "INSERT INTO schedules (id, client_id, kind, rrule, timezone, next_run_at, config_json, requires_review, enabled, created_at) VALUES (?, ?, 'alert', 'FREQ=WEEKLY;BYDAY=MO', 'UTC', ?, ?, 1, 1, ?)",
+    ).bind(alertSchedule, clientId, now + 86_400_000, JSON.stringify({ alertId: f.alertId }), now),
+    testEnv.DB.prepare("INSERT INTO alerts (id, client_id, query_json, schedule_id, name, mode, created_at) VALUES (?, ?, '{}', ?, 'Weekly', 'review', ?)").bind(
+      f.alertId,
+      clientId,
+      alertSchedule,
+      now,
+    ),
+    testEnv.DB.prepare("INSERT INTO alert_matches (id, alert_id, client_id, og_id, data_json, status, created_at) VALUES (?, ?, ?, ?, ?, 'new', ?)").bind(
+      f.matchId,
+      f.alertId,
+      clientId,
+      `og-${clientId}`,
+      JSON.stringify({ ogId: `og-${clientId}`, kind: 'grant', title: 'Matched grant', funderName: null, url: null, amountMin: null, amountMax: null, deadlineAt: null, fitScore: null, eligibilityNotes: null, summary: null }),
       now,
     ),
   ]);
@@ -260,6 +327,13 @@ describe('authorization per route', () => {
       .replace(':versionId', r.versionId)
       .replace(':updateId', r.updateId)
       .replace(':scheduleId', r.scheduleId)
+      .replace(':opportunityId', r.opportunityId)
+      .replace(':reportId', r.reportId)
+      .replace(':alertId', r.alertId)
+      .replace(':matchId', r.matchId)
+      .replace(':kind', 'grant')
+      .replace(':ogId', 'og-1')
+      .replace(':funderId', 'f-1')
       .replace(':key', 'x')
       .replace(':n', '1')
       .replace(':id', 'x_01J00000000000000000000000')
@@ -365,13 +439,16 @@ describe('authorization per route', () => {
     // Every route that names a row inside a client, called with client A's ID
     // but client B's row. Scoping only by the URL's client would leak B here.
     const nested = Object.entries(POLICY).filter(
-      ([route, p]) => p.startsWith('clientScoped') && /:(fileId|requestId|itemId|deliverableId|versionId|updateId|scheduleId)/.test(route),
+      ([route, p]) => p.startsWith('clientScoped') && /:(fileId|requestId|itemId|deliverableId|versionId|updateId|scheduleId|opportunityId|reportId|alertId|matchId)/.test(route),
     );
     // Valid bodies, so validation can't answer before the lookup does.
     const body = (route: string): unknown => {
       if (route.endsWith('/items/:itemId/file')) return { fileId: fx.A.fileId };
       if (route.endsWith('/versions')) return { url: 'https://docs.example.org/v' };
       if (route.endsWith('/decision')) return { decision: 'approved' };
+      if (route.endsWith('/respond')) return { response: 'pursue' };
+      if (route.endsWith('/reports/:reportId/items')) return { opportunityId: fx.A.opportunityId };
+      if (route.endsWith('/order')) return { opportunityIds: [] };
       if (route.startsWith('PATCH ')) return { title: 'x' };
       return {};
     };

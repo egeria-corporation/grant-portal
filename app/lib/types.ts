@@ -92,11 +92,13 @@ export interface Overview {
   awaitingDecision: Deliverable[];
   owedByCaller: Deliverable[];
   unreadMessages: number;
-  deadlines: { kind: 'deliverable' | 'request'; id: string; title: string; dueAt: number }[];
+  deadlines: { kind: 'deliverable' | 'request' | 'opportunity'; id: string; title: string; dueAt: number }[];
   overdue: number;
   latestFromConsultant: { id: string; body: string; createdAt: number; author: string } | null;
   pipeline: Record<string, number>;
   latestUpdate: { id: string; subject: string; intro: string | null; sentAt: number } | null;
+  reportsToAnswer: { id: string; title: string; unanswered: number; sentAt: number }[];
+  latestReport: { id: string; title: string; sentAt: number } | null;
 }
 
 export interface UpdateBlock {
@@ -164,4 +166,107 @@ export interface Member {
   role: 'admin' | 'member';
   joinedAt: number;
   activeSessions?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Funding (M5)
+// ---------------------------------------------------------------------------
+
+export type Stage = 'none' | 'researching' | 'preparing' | 'submitted' | 'awarded' | 'declined';
+
+export interface Opportunity {
+  id: string;
+  clientId: string;
+  kind: string;
+  title: string;
+  funderName: string | null;
+  url: string | null;
+  amountMin: number | null;
+  amountMax: number | null;
+  deadlineAt: number | null;
+  eligibilityNotes: string | null;
+  summary: string | null;
+  fitScore: number | null;
+  stage: Stage;
+  stageChangedAt: number | null;
+  createdAt: number;
+  /** On list responses. */
+  deliverables?: { done: number; total: number };
+  /** Staff only. */
+  source?: 'manual' | 'opengrants' | 'csv';
+  ogId?: string | null;
+  notes?: string | null;
+  clientName?: string;
+}
+
+/** A listing from OpenGrants, before it's saved for a client. */
+export interface OpportunityDraft {
+  ogId: string;
+  kind: 'grant' | 'contract';
+  title: string;
+  funderName: string | null;
+  url: string | null;
+  amountMin: number | null;
+  amountMax: number | null;
+  deadlineAt: number | null;
+  fitScore: number | null;
+  eligibilityNotes: string | null;
+  summary: string | null;
+}
+
+export type ReportTag = 'recommended' | 'consider' | 'fyi';
+export type ReportResponse = 'pursue' | 'not_now' | 'question';
+
+export interface Report {
+  id: string;
+  title: string;
+  intro: string | null;
+  status: 'draft' | 'scheduled' | 'sent';
+  sentAt: number | null;
+  createdAt: number;
+  itemCount: number;
+  answeredCount: number;
+  pursueCount: number;
+  pendingReview?: boolean;
+  fromSchedule?: boolean;
+  updatedAt?: number;
+}
+
+export interface ReportItem {
+  opportunity: Opportunity;
+  position: number;
+  note: string | null;
+  tag: ReportTag | null;
+  response: ReportResponse | null;
+  comment: string | null;
+  respondedAt: number | null;
+}
+
+export interface FundingUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  low: boolean;
+  resetsAt: number;
+}
+
+export interface FundingAlert {
+  id: string;
+  name: string;
+  query: { source: 'search' | 'match'; kind: 'grant' | 'contract'; search?: string; states?: string; minAmount?: number; maxAmount?: number } | null;
+  mode: 'review' | 'report';
+  lastRunAt: number | null;
+  lastStatus: string | null;
+  newMatches: number;
+  schedule: { id: string; rrule: string; description: string; timezone: string | null; nextRunAt: number | null; requiresReview: boolean; enabled: boolean } | null;
+}
+
+export interface AlertMatch {
+  id: string;
+  alertId: string;
+  alertName: string;
+  status: 'new' | 'added' | 'dismissed';
+  opportunityId: string | null;
+  createdAt: number;
+  listing: OpportunityDraft;
 }

@@ -344,3 +344,90 @@ With review on (the default, spec §12), a run builds the draft, freezes its blo
 
 ### D-064 Calendar feeds
 `/ics/<token>.ics` carries all-day events for deliverable due dates, document request due dates and grant deadlines. Staff feeds also include timed events for scheduled sends. The token is 256 bits and only its SHA-256 is stored. Access is re-checked on every fetch, and feeds are revocable. Staff can make a feed for all their clients or one; client users for their organization.
+
+## M5 — Funding reports & OpenGrants
+
+### D-065 OpenGrants client generated from the committed spec
+`scripts/gen-opengrants.mjs` turns `worker/integrations/opengrants/openapi.json` into `client.gen.ts`: one typed function per operation, and nothing else. Responses the spec gives no schema for are typed `unknown`.
+
+`tests/build/opengrants.test.ts` fails if the generated file is stale, or if it calls a path the spec doesn't list (CLAUDE.md #5). To change the client, update the spec and run `node scripts/gen-opengrants.mjs`. No generator dependency: the spec only uses a small subset of OpenAPI.
+
+### D-066 Response mapping is defensive
+The committed spec (v1.2.0) types the match request and response, but not the list or detail responses. `mapping.ts` reads them defensively:
+- field names come from the spec's own `sort_by` enum and match item;
+- wrappers like `data`, `results` or a bare array are all accepted;
+- a missing value becomes `null`, never a guess;
+- non-http(s) URLs are dropped.
+
+It's the only file that knows OpenGrants field names. If the live API differs, change it there; the live smoke test (`tests/build/opengrants-live.test.ts`, which runs only with `OPENGRANTS_API_KEY` set) will say so.
+
+The client profile → match request mapping also lives here:
+- The mission falls back to programs and focus tags.
+- The entity type maps to `applicant_type`.
+- The budget band's floor becomes `annual_budget_usd`.
+- A profile with nothing to match on makes no request.
+
+### D-067 Request budget and cache
+Every uncached call counts in KV `og:usage:<UTC date>`. The limit is the `OPENGRANTS_DAILY_LIMIT` var (default 25, spec §10.2). When the API sends `x-ratelimit-limit` / `x-ratelimit-remaining`, those win. The counter is checked before each call, so a request is never made with nothing left. Like the rate limiter (D-020), the counter is best-effort, not atomic.
+
+Responses are cached in KV by a hash of the call:
+- search and match: 6 h;
+- listing detail: 24 h;
+- funder: 7 d.
+
+Identical searches across clients share one request.
+
+Low-budget mode starts below 20% remaining: scheduled alert runs and the deadline refresh pause, while interactive search and "Run now" keep working because a person asked.
+
+Upstream errors map to stable codes (`opengrants_*`). The UI shows a plain notice and offers manual entry (spec §10.4).
+
+### D-068 Branded PDF export
+Workers have no headless browser or canvas, and PDF libraries are large. The report PDF comes from a ~400-line writer in `worker/reports/pdf.ts`:
+- PDF 1.4, US Letter;
+- the standard Helvetica fonts with WinAnsi encoding (no font embedding);
+- flate-compressed streams (`CompressionStream`);
+- link annotations for listing URLs;
+- the brand accent colour;
+- the firm's raster logo: JPEG as-is, or an 8-bit non-interlaced PNG decoded to RGB plus an alpha mask. SVG and unusual PNGs fall back to the firm name.
+
+All text is escaped into 7-bit PDF strings. Characters outside WinAnsi become `?`. That's a known limit for non-Latin text; a font-embedding approach can come later if it matters.
+
+The PDF holds only what the client sees: no private notes, no data source, and no product name. `/Producer` is omitted.
+
+### D-069 Opportunity visibility and attribution
+An opportunity's stage is `none` (a candidate) until it joins the pipeline:
+- Client users see pipeline items, plus candidates that appear in a report they were sent. Consultant notes, the data source and the OpenGrants ID are never in client responses.
+- Consultant views show "Source: OpenGrants" (or CSV / by hand).
+- Client views, emails and the PDF show the funder's own listing link as the source (spec §10.5). Whether OpenGrants' terms require attribution in client-facing output is still spec §16's open question. The current behaviour is the conservative reading of §10.5.
+
+### D-070 Reports and client responses
+- Only drafts can be edited. Sending is a conditional update, so a double click sends once. An empty report can't be sent.
+- The client gets a `report` notification in the updates category: one-click unsubscribable, and honoured by the preference.
+- Answers come from client users only; staff get 403 `client_users_only`. A question must have text, and is stored on the report item.
+- Pursue moves a candidate to Researching. Changing the answer later doesn't move it back: once work may have started, the pipeline is the consultant's to manage.
+- Staff are notified of each answer (activity category, so it can be digested).
+- The "template offer" is a Plan deliverables button on Researching/Preparing cards with no deliverables. It uses the M3 template endpoint with the deadline as the anchor.
+
+### D-071 Alerts and recurring reports
+An alert is a saved search, or a profile match, with an RRULE schedule (kind `alert`). A run keeps only listings it hasn't seen: its own seen list, anything already saved for the client, and anything already queued. The seen list is written only after the results are stored, so a failed run retries in full. Then, by mode:
+- `review` (default): new listings go to `alert_matches` for the consultant, who saves or dismisses each. Saving uses the listing data from the match, so it costs no extra request.
+- `report`: the run creates the opportunities and a draft report.
+  - With review on (the default, spec §5.3), the draft waits and the consultant is emailed.
+  - With review off, it's sent.
+  - One report per (schedule, run time), so a retried job doesn't make two.
+
+The dispatcher queues at most 3 alert runs per 15-minute tick. The rest stay due, so a dozen Monday alerts spread over the morning (spec §10.4 "don't burst").
+
+### D-072 Deadline refresh
+The daily cron re-reads up to 10 saved OpenGrants listings a day. It picks those in Candidates, Researching or Preparing, with a future or missing deadline, oldest refresh first, each at most once per ~20 h. It stops at low budget.
+
+A changed deadline is written and noted on the client's timeline. A listing that no longer exists is left as it is.
+
+### D-073 CSV import
+- An RFC 4180 reader, without a dependency.
+- Header names are matched loosely (Title/Name, Funder/Agency, Deadline/Due date, Amount/Amount max, Amount min, URL/Link, Eligibility, Notes).
+- Dates can be ISO or US `M/D/YYYY`. Amounts accept `$25,000`, `25k` or `1.5M`. URLs must be http(s).
+- Valid rows are imported; the rest are reported by line. The limit is 500 rows per import.
+
+### D-074 Pipeline board without drag and drop
+Cards move with a stage menu on each card. That works by keyboard and screen reader, on phones, and needs no drag-and-drop dependency. The design's `KanbanCard` look is kept.

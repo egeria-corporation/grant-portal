@@ -1,6 +1,7 @@
 import type { AppEnv } from '../env';
 import { finalizeFile, purgeStaleUploads } from '../files/store';
 import { sendDigest, sendNotification } from '../notify';
+import { refreshDeadlines, runAlertSchedule } from '../funding/alerts';
 import { runUpdateSchedule } from '../updates';
 import { dispatch } from './dispatch';
 import { isJob, type Job } from './types';
@@ -36,6 +37,12 @@ export async function cleanupExpired(env: AppEnv, now: number): Promise<void> {
     env.DB.prepare("DELETE FROM job_runs WHERE status = 'done' AND updated_at < ?").bind(now - 30 * 86_400_000),
   ]);
   await purgeStaleUploads(env, now);
+  // Budget-aware; a failure here must not stop tomorrow's cleanup.
+  try {
+    await refreshDeadlines(env, now);
+  } catch (err) {
+    console.error('[cron] deadline refresh failed', err);
+  }
 }
 
 async function mark(env: AppEnv, job: Job, status: 'done' | 'failed' | 'dead', attempts: number, error: string | null): Promise<void> {
@@ -96,8 +103,8 @@ export async function runJob(job: Job, env: AppEnv): Promise<void> {
         .bind(job.scheduleId)
         .first<{ id: string; kind: string; client_id: string | null; config_json: string | null; requires_review: number; created_by: string | null }>();
       if (!s) return;
-      // Reports and alerts (M5) plug in here.
       if (s.kind === 'update') await runUpdateSchedule(env, s, job.runAt);
+      else if (s.kind === 'alert') await runAlertSchedule(env, s, job.runAt);
       return;
     }
   }
