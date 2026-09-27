@@ -294,3 +294,53 @@ Events hold IDs and short labels: a filename, a deliverable title, a version num
 
 ### D-056 E2E runs on one worker
 The specs share one local portal, and `wizard.spec.ts` must claim it before `workflow.spec.ts` signs in as its Owner. So Playwright runs with `workers: 1`, and files run in name order.
+
+## M4
+
+### D-057 react-email components, rendered by React
+Templates use react-email's components (`Html`, `Body`, `Container`, `Section`, `Text`, `Button`, …) for Outlook-safe table layouts (spec §9). They're rendered with React's own `react-dom/server.edge`, not `@react-email/render`, because that package statically imports Prettier and its HTML plugin, which would add about a megabyte to the Worker for a pretty-print option we don't use.
+
+Every email has a hand-written plain-text part, which is the reference (spec §7.6). Colors come from the brand's light-mode tokens; email clients' dark modes are too inconsistent to target. Only a raster logo is used, because many clients block SVG; otherwise the firm name is set in type. Snapshots for the three sample brands live in `tests/unit/__snapshots__/email/`.
+
+### D-058 Delivery webhooks
+Resend signs webhooks with Svix. The portal verifies the HMAC over `id.timestamp.body`, refuses timestamps more than 5 minutes off, and applies each message ID once (KV, 7 days). Status only moves forward (a late "sent" can't overwrite "delivered").
+
+A hard bounce (anything but `Temporary`), a complaint or a Resend suppression sets `users.email_suppressed_at`. Suppressed addresses still get sign-in email and document requests. Everything else is recorded as `suppressed` and not sent, until the person turns email back on in their profile.
+
+The webhook is registered through Resend's API when the sending domain verifies (or from System), and its signing secret is stored encrypted. There's no fourth secret (D-002).
+
+### D-059 Notification categories and preferences
+- **Transactional (document requests):** always sent, per spec §9.
+- **Activity (new versions, decisions, messages):** right away, daily summary, weekly summary (Mondays), or off.
+- **Reminders (document cadence, review nudges, grant deadline countdowns):** on or off.
+- **Updates (scheduled client updates):** on or off.
+
+Notifications go to the other side: client users, or the client's assigned consultants (the Owner when none are assigned). The actor is never notified of their own action. Each send is claimed on its notification row before it goes out, so a retried or duplicated job can't send twice. Digests go out at 8:00 in the recipient's time zone. That comes from their browser, falling back to the org default and then UTC.
+
+No notifications are sent until the sending domain is verified (spec §3.4); they're recorded as skipped. Local development sends to the outbox.
+
+### D-060 One-click unsubscribe
+Non-transactional mail carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058). The URL `/u/<user>.<category>.<hmac>` is signed with the session secret and can only turn that category off.
+
+Mail providers POST to it without cookies, so `/u/*` is exempt from CSRF, like `/webhooks/*`. The same URL, opened in a browser, shows a confirm page.
+
+### D-061 Dispatcher and idempotency
+Every 15 minutes the dispatcher claims keys in `job_runs` with `INSERT OR IGNORE` before queueing:
+- `${schedule}:${runAt}` for schedule runs;
+- `reminder:${request}:${offset}`, `nudge:${version}:${days}` and `countdown:${opportunity}:${days}` for reminders;
+- `digest:${user}:${localDate}` for digests.
+
+A slow or repeated cron run can't queue the same work twice, and a schedule's `next_run_at` only moves if it still holds the value that was dispatched. Reminders more than a day late are dropped rather than sent days after the fact.
+
+Queue jobs retry with backoff. After 5 attempts (matching `max_retries`) they're marked `dead` and listed on the Owner's System page, which can re-queue them.
+
+### D-062 RRULE subset
+`shared/rrule.ts` implements FREQ=DAILY/WEEKLY/MONTHLY, INTERVAL, BYDAY (with ordinals like `1MO` and `-1FR` for MONTHLY), BYMONTHDAY (1–28, −1), BYHOUR, BYMINUTE and UNTIL. It evaluates them in the schedule's IANA time zone via `Intl`, so "Mondays at 9:00" stays 9:00 across daylight-saving changes; a skipped local time moves past the gap. Anything outside the subset is rejected when the schedule is saved. No RRULE library: the common ones pull in a time-zone database or don't run in Workers.
+
+### D-063 Scheduled updates
+An update has a subject, a plain-text message, and a choice of live blocks: deadlines in the next 30 days, opportunities added since the last update, outstanding required documents, and wins (approvals, completed requests and, from M5, awards). Blocks are filled at send time and frozen into the update, so what was sent is what's shown later. An update can be sent now, once at a time, or on a repeating schedule.
+
+With review on (the default, spec §12), a run builds the draft, freezes its blocks, and emails the consultant. The client gets nothing until someone presses Send. Each run makes at most one update, keyed by schedule and run time.
+
+### D-064 Calendar feeds
+`/ics/<token>.ics` carries all-day events for deliverable due dates, document request due dates and grant deadlines. Staff feeds also include timed events for scheduled sends. The token is 256 bits and only its SHA-256 is stored. Access is re-checked on every fetch, and feeds are revocable. Staff can make a feed for all their clients or one; client users for their organization.

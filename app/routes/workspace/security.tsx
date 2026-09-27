@@ -1,4 +1,4 @@
-/** Staff security: sessions, passkeys, and (Owner) Turnstile + passkey policy. */
+/** Staff account: email preferences, calendar feed, sessions, passkeys, and (Owner) Turnstile + passkey policy. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { KeyRound } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useOverview } from '@/setup/steps';
 import { Button, Card, Field, Input, Notice } from '@/ui/controls';
 import { AddPasskeyButton } from '@/ui/PasskeyButton';
 import { SessionsCard } from '@/ui/SessionsCard';
+import { CalendarCard, NotificationsCard } from '@/client/Preferences';
 
 export const Route = createFileRoute('/workspace/security')({ component: Security });
 
@@ -134,9 +135,12 @@ function OwnerSecurity() {
 
 function Security() {
   const me = useMe();
+  const clients = useQuery({ queryKey: ['clients', false], queryFn: () => getJson<{ clients: { id: string; name: string }[] }>('/api/clients') });
   return (
     <>
-      <h1 className="hd text-[26px] leading-8">Security</h1>
+      <h1 className="hd text-[26px] leading-8">Account & security</h1>
+      <NotificationsCard />
+      <CalendarCard clients={clients.data?.clients ?? []} allowAll />
       <SessionsCard />
       <PasskeysCard />
       {me.data?.user.role === 'owner' ? <OwnerSecurity /> : null}

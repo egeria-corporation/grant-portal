@@ -96,6 +96,38 @@ export interface Overview {
   overdue: number;
   latestFromConsultant: { id: string; body: string; createdAt: number; author: string } | null;
   pipeline: Record<string, number>;
+  latestUpdate: { id: string; subject: string; intro: string | null; sentAt: number } | null;
+}
+
+export interface UpdateBlock {
+  kind: 'deadlines' | 'opportunities' | 'documents' | 'wins';
+  title: string;
+  items: { title: string; detail?: string }[];
+  empty: string;
+}
+
+export interface ClientUpdate {
+  id: string;
+  scheduleId: string | null;
+  subject: string;
+  intro: string | null;
+  blocks: string[];
+  content: UpdateBlock[] | null;
+  status: 'scheduled' | 'pending_review' | 'sent' | 'cancelled';
+  sendAt: number | null;
+  sentAt: number | null;
+  createdAt: number;
+}
+
+export interface UpdateSchedule {
+  id: string;
+  rrule: string;
+  description: string;
+  timezone: string | null;
+  nextRunAt: number | null;
+  config: { subject: string; intro: string | null; blocks: string[] } | null;
+  requiresReview: boolean;
+  enabled: boolean;
 }
 
 export interface ClientProfile {
@@ -118,6 +150,7 @@ export interface ClientProfile {
   focusTags?: string[];
   fundingGoals?: { targetAmount: number | null; timeline: string | null; types: string[] };
   clientCanEdit: boolean;
+  reminders?: { documents: boolean; approvals: boolean; deadlines: boolean };
   isDemo?: boolean;
   canEdit: boolean;
   createdAt: number;

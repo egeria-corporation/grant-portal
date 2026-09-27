@@ -74,6 +74,14 @@ With a scanner bound, every new upload shows "Checking…" and can't be download
 - **Messages** are plain text. They're never rendered as HTML.
 - **Timeline.** Each client has an activity log (uploads, requests, versions, approvals, sign-ins, messages sent). It records who did what and when, not message text or file contents.
 
+## Email
+
+- **Sign-in email is plain and private.** Sign-in and invite emails have a plain-text part, no tracking pixels and no click tracking (links are never rewritten). The only image any email may load is the firm's own logo.
+- **Links, not files.** Emails link to pages in the portal; files are never attached or linked directly.
+- **One-click unsubscribe.** Non-essential email (activity, reminders, updates) carries a `List-Unsubscribe` header and a footer link, each tied to one person and one kind of email by a signed token. The link can only turn email off. Sign-in emails and document requests always go out.
+- **Bounces and complaints.** Delivery events from Resend are accepted only with a valid signature and a recent timestamp, and each event is applied once. A hard bounce or complaint stops non-essential email to that address until the person turns it back on from their profile.
+- **Calendar feeds** use a random 256-bit token in the URL; only its hash is stored. Anyone with the URL can read the calendar (that's how calendar apps subscribe), so feeds can be revoked, and access is re-checked on every fetch: someone removed from a client stops seeing its dates.
+
 ## Secrets and sensitive data
 
 - `SESSION_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first boot if you leave them blank. They're kept in KV, and the Owner sees a banner recommending you move them to Worker secrets.

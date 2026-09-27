@@ -13,6 +13,7 @@ import { audit } from '../lib/audit';
 import { eventStmts } from '../lib/events';
 import { HttpError, parseJson } from '../lib/http';
 import { newId } from '../lib/ids';
+import { clientName, notify } from '../notify';
 import { visibleFile, visibleFiles } from './files';
 
 const DAY = 86_400_000;
@@ -303,6 +304,17 @@ export const deliverables = new Hono<AppBindings>()
       c.env.DB.prepare("UPDATE deliverables SET status = 'in_review', updated_at = ? WHERE id = ?").bind(now, row.id),
       ...eventStmts(c.env, { clientId, actor: user.id, type: 'deliverable.version_added', payload: { deliverableId: row.id, title: row.title, version } }),
     ]);
+    // The side that's owed the deliverable reviews it.
+    c.executionCtx.waitUntil(
+      (async () =>
+        notify(c.env, {
+          clientId,
+          audience: row.side === 'consultant' ? 'client' : 'staff',
+          kind: 'deliverable.review',
+          actorId: user.id,
+          payload: { deliverableId: row.id, title: row.title, version, note: body.note ?? null, from: user.name ?? user.email, clientName: await clientName(c.env, clientId) },
+        }))().catch((err) => console.error('[notify] deliverable.review', err)),
+    );
     return c.json({ id, version }, 201);
   })
 
@@ -345,6 +357,24 @@ export const deliverables = new Hono<AppBindings>()
       }),
     ]);
     await audit(c, { action: 'deliverable.decided', target: row.id, meta: { version: latest.version, decision: body.decision } });
+    c.executionCtx.waitUntil(
+      (async () =>
+        notify(c.env, {
+          clientId,
+          audience: row.side === 'consultant' ? 'staff' : 'client',
+          kind: 'deliverable.decision',
+          actorId: user.id,
+          payload: {
+            deliverableId: row.id,
+            title: row.title,
+            version: latest.version,
+            decision: body.decision,
+            comment: body.comment ?? null,
+            by: user.name ?? user.email,
+            clientName: await clientName(c.env, clientId),
+          },
+        }))().catch((err) => console.error('[notify] deliverable.decision', err)),
+    );
     return c.json({ ok: true });
   });
 

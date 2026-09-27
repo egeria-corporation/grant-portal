@@ -63,13 +63,13 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [x] Playwright: client uploads 3 docs + approves a deliverable (`tests/e2e/workflow.spec.ts`)
 
 ## M4 — Email, schedules, reminders
-- [ ] `EmailProvider` + Resend adapter; signed webhooks → suppression + timeline
-- [ ] react-email templates (12) themed from brand tokens; magic link text-first, no tracking; `List-Unsubscribe` for non-transactional
-- [ ] Cron dispatcher → Queue; idempotent `(schedule_id, run_at)`; RRULE; review gate; dead-letter → Owner System page
-- [ ] Scheduled update composer with live blocks
-- [ ] Digest preferences + timezone; ICS feeds (tokenized, revocable)
-- [ ] Tests: advancement, idempotency, review gate, digest batching, bounce suppression
-- [ ] Email snapshots for 3 brands
+- [x] `EmailProvider` + Resend adapter; signed webhooks (Svix) → delivery status, suppression, timeline (D-058)
+- [x] react-email templates (10 now; funding report and alert matches arrive with M5) themed from brand tokens; auth mail text-first, no tracking; `List-Unsubscribe` one-click for non-transactional (D-057, D-060)
+- [x] Cron dispatcher → Queue; idempotent keys in `job_runs`; RRULE subset with time zones; review gate; dead letters → Owner System page (D-061, D-062)
+- [x] Scheduled update composer with live blocks (deadlines, opportunities, documents, wins) (D-063)
+- [x] Digest preferences + timezone; ICS feeds (tokenized, revocable, access re-checked) (D-059, D-064)
+- [x] Tests: schedule advancement, idempotency, review gate, digest batching, bounce suppression, webhook signatures, unsubscribe, ICS
+- [x] Email snapshots for 3 brands (`tests/unit/__snapshots__/email/`)
 
 ## M5 — Funding reports & OpenGrants
 - [ ] Manual opportunities, CSV import, report builder, preview toggle, client responses, Pursue → pipeline (+ template)

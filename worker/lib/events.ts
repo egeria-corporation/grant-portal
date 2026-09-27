@@ -29,7 +29,11 @@ export type EventType =
   | 'deliverable.version_added'
   | 'deliverable.approved'
   | 'deliverable.changes_requested'
-  | 'message.posted';
+  | 'message.posted'
+  | 'email.delivered'
+  | 'email.bounced'
+  | 'update.sent'
+  | 'update.scheduled';
 
 export interface EventInput {
   clientId: string;

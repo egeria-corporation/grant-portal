@@ -11,12 +11,14 @@ import { z } from 'zod';
 import { authOf, requireOwner, requireStepUp } from '../auth/guards';
 import { ASSET_SLOTS, isSlot, removeAsset, SLOT_RULES, storeAsset } from '../brand/assets';
 import { assetUrl, getBrandState } from '../brand/state';
+import { isValidTimeZone } from '@shared/rrule';
 import { emailProvider, sender } from '../email';
+import { ensureWebhook } from '../email/delivery';
 import { EmailNotConfiguredError, EmailProviderError, type DnsRecord } from '../email/provider';
 import type { AppBindings, AppEnv } from '../env';
 import { CloudflareApi, CloudflareApiError, workerNameFromHost } from '../integrations/cloudflare';
 import { audit } from '../lib/audit';
-import { HttpError, parseJson } from '../lib/http';
+import { HttpError, parseJson, publicOrigin } from '../lib/http';
 import {
   decryptSecretSetting,
   DEFAULT_ACCENT,
@@ -63,7 +65,7 @@ export const settingsApi = new Hono<AppBindings>()
 
   /** One call for the wizard's final checklist and the Owner notices. */
   .get('/overview', async (c) => {
-    const [brand, email, domain, og, cf, ts, security, from] = await Promise.all([
+    const [brand, email, domain, og, cf, ts, security, from, webhook, org] = await Promise.all([
       getSetting(c.env, 'brand'),
       getSetting(c.env, 'email'),
       getSetting(c.env, 'domain'),
@@ -72,6 +74,8 @@ export const settingsApi = new Hono<AppBindings>()
       turnstileConfig(c.env),
       getSetting(c.env, 'security'),
       sender(c.env),
+      getSetting(c.env, 'email_webhook'),
+      getSetting(c.env, 'org'),
     ]);
     return c.json({
       brand: brand ?? { firmName: '', accent: DEFAULT_ACCENT },
@@ -81,6 +85,8 @@ export const settingsApi = new Hono<AppBindings>()
       cloudflareToken: Boolean(cf),
       turnstile: { configured: Boolean(ts), source: ts?.source ?? null, siteKey: ts?.siteKey ?? null },
       security: { requirePasskeysForStaff: security?.requirePasskeysForStaff ?? false },
+      deliveryTracking: Boolean(webhook),
+      timezone: org?.timezone ?? null,
       workerName: workerNameFromHost(new URL(c.req.url).hostname),
     });
   })
@@ -213,10 +219,31 @@ export const settingsApi = new Hono<AppBindings>()
         records: withDmarc(records.length ? records : current.records, current.domain),
         checkedAt: Date.now(),
       });
+      // Once mail can go out, turn on delivery tracking. Best effort: the Owner can retry from Settings.
+      if (d.status === 'verified') await ensureWebhook(c.env, publicOrigin(c.req.raw)).catch((err) => console.error('[email] webhook setup failed', err));
     } catch (err) {
       providerError(err);
     }
     return c.json({ email: await getSetting(c.env, 'email') });
+  })
+
+  /** Delivery tracking (spec §7.6): registers the Resend webhook for bounces, complaints and deliveries. */
+  .post('/email/webhook', async (c) => {
+    try {
+      await ensureWebhook(c.env, publicOrigin(c.req.raw));
+    } catch (err) {
+      providerError(err);
+    }
+    await audit(c, { action: 'settings.updated', target: 'email.webhook' });
+    return c.json({ ok: true });
+  })
+
+  /** Org defaults: the time zone digests and schedules use when a person hasn't set one. */
+  .put('/org', async (c) => {
+    const body = await parseJson(c, z.object({ timezone: z.string().max(64).refine(isValidTimeZone) }));
+    await setSetting(c.env, 'org', body);
+    await audit(c, { action: 'settings.updated', target: 'org' });
+    return c.json({ ok: true });
   })
 
   /** One-click DNS: creates the Resend records in the Cloudflare zone. */

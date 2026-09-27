@@ -9,6 +9,9 @@ export const memoryOutbox: EmailMessage[] = [];
 
 const OUTBOX_KEY = 'dev:outbox';
 
+/** `whsec_` + base64 of 24 bytes of zeros-and-ones; only ever used by the dev outbox provider. */
+export const DEV_WEBHOOK_SECRET = 'whsec_ZGV2LXdlYmhvb2stc2lnbmluZy1zZWNyZXQ=';
+
 export class OutboxProvider implements EmailProvider {
   readonly name = 'outbox';
   private static domains = new Map<string, SendingDomain>();
@@ -24,6 +27,11 @@ export class OutboxProvider implements EmailProvider {
       console.log(`[dev email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
     }
     return { id: `dev_${crypto.randomUUID()}` };
+  }
+
+  /** Dev webhooks get a fixed, well-known secret so tests can sign payloads. */
+  async createWebhook(): Promise<{ id: string; signingSecret: string }> {
+    return { id: `dev_${crypto.randomUUID()}`, signingSecret: DEV_WEBHOOK_SECRET };
   }
 
   async createDomain(name: string): Promise<SendingDomain> {

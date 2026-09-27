@@ -190,6 +190,8 @@ export const clients = sqliteTable(
     isDemo: integer('is_demo', { mode: 'boolean' }).notNull().default(false),
     /** Client admins may edit org basics in the portal (spec §6.7 "when the consultant allows it"). */
     clientCanEdit: integer('client_can_edit', { mode: 'boolean' }).notNull().default(false),
+    /** Automatic reminders for this client (spec §5.7): `{ documents, approvals, deadlines }`, all on by default. */
+    remindersJson: text('reminders_json'),
     /** Last timeline event, for "last activity" in the client list. */
     lastActivityAt: integer('last_activity_at'),
     createdAt: createdAt(),
@@ -519,6 +521,8 @@ export const emails = sqliteTable(
     toEmail: text('to_email').notNull(),
     clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
     template: text('template').notNull(),
+    /** auth | transactional | activity | reminders | updates: decides unsubscribe and suppression rules. */
+    category: text('category'),
     subject: text('subject').notNull(),
     resendId: text('resend_id'),
     status: text('status', {
@@ -548,6 +552,73 @@ export const messages = sqliteTable(
     readByJson: text('read_by_json'),
   },
   (t) => [index('messages_client_created_idx').on(t.clientId, t.createdAt)],
+);
+
+/**
+ * Things a person should hear about (spec §5.7, §9). Each becomes an email
+ * right away, or waits for that person's daily or weekly digest.
+ */
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: id(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    payloadJson: text('payload_json'),
+    /** instant | digest | skipped */
+    delivery: text('delivery').notNull(),
+    emailId: text('email_id'),
+    createdAt: createdAt(),
+    emailedAt: integer('emailed_at'),
+  },
+  (t) => [index('notifications_user_pending_idx').on(t.userId, t.emailedAt)],
+);
+
+/** Branded client updates (spec §5.7): composed once, or produced by a schedule; blocks fill from live data at send time. */
+export const updates = sqliteTable(
+  'updates',
+  {
+    id: id(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    scheduleId: text('schedule_id').references(() => schedules.id, { onDelete: 'set null' }),
+    subject: text('subject').notNull(),
+    intro: text('intro'),
+    /** Which live blocks to include: deadlines, opportunities, documents, wins. */
+    blocksJson: text('blocks_json').notNull(),
+    /** Frozen block contents once built (what was, or will be, sent). */
+    contentJson: text('content_json'),
+    status: text('status', { enum: ['scheduled', 'pending_review', 'sent', 'cancelled'] }).notNull(),
+    sendAt: integer('send_at'),
+    sentAt: integer('sent_at'),
+    reviewedBy: text('reviewed_by'),
+    createdBy: text('created_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('updates_client_created_idx').on(t.clientId, t.createdAt)],
+);
+
+/** Tokenized, revocable calendar feeds (spec §5.7). Only the token's hash is stored. */
+export const calendarFeeds = sqliteTable(
+  'calendar_feeds',
+  {
+    id: id(),
+    tokenHash: text('token_hash').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Null: every client the user can reach (staff only). */
+    clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+    label: text('label'),
+    createdAt: createdAt(),
+    lastUsedAt: integer('last_used_at'),
+    revokedAt: integer('revoked_at'),
+  },
+  (t) => [uniqueIndex('calendar_feeds_token_uq').on(t.tokenHash), index('calendar_feeds_user_idx').on(t.userId)],
 );
 
 /** How far each person has read each thread (`thread_ref` '' = the client's main thread). */

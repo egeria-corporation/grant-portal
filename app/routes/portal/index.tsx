@@ -101,6 +101,21 @@ function PortalHome() {
         </section>
       ) : null}
 
+      {o?.latestUpdate ? (
+        <section className="card flex flex-col gap-2 p-4" aria-labelledby="update-h">
+          <h2 id="update-h" className="t-h4">
+            {o.latestUpdate.subject}
+          </h2>
+          {o.latestUpdate.intro ? <p className="whitespace-pre-line text-text2">{o.latestUpdate.intro}</p> : null}
+          <span className="t-xs text-text2">
+            Update from {firm} · {timeAgo(o.latestUpdate.sentAt)} ·{' '}
+            <Link to="/portal/updates" className="text-acc-text hover:underline">
+              Read it
+            </Link>
+          </span>
+        </section>
+      ) : null}
+
       {o?.latestFromConsultant ? (
         <section className="card flex flex-col gap-2 p-4" aria-labelledby="latest-h">
           <h2 id="latest-h" className="t-h4">

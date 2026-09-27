@@ -5,9 +5,9 @@
  */
 import type { Context } from 'hono';
 import { createLink, INVITE_TTL_MS } from '../auth/magic';
-import { firmName } from '../auth/signin';
 import { canEmailOthers, sendEmail } from '../email';
 import { inviteEmail } from '../email/templates/auth';
+import { loadEmailBrand } from '../email/templates/brand';
 import type { AppBindings } from '../env';
 import { audit } from '../lib/audit';
 import { HttpError, publicOrigin } from '../lib/http';
@@ -66,8 +66,7 @@ export async function createInvite(
   await audit(c, { action: 'invite.created', target: p.clientId ?? 'team', meta: { role: p.role, delivery: p.delivery } });
 
   if (p.delivery === 'email') {
-    const rendered = inviteEmail({
-      firm: await firmName(c.env),
+    const rendered = await inviteEmail(await loadEmailBrand(c.env, publicOrigin(c.req.raw)), {
       link: url,
       inviter: inviter.user.name,
       hours: INVITE_TTL_MS / 3600_000,

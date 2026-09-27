@@ -21,6 +21,8 @@ export interface Overview {
   turnstile: { configured: boolean; source: string | null; siteKey: string | null };
   security: { requirePasskeysForStaff: boolean };
   workerName: string | null;
+  deliveryTracking: boolean;
+  timezone: string | null;
 }
 
 export function useOverview() {

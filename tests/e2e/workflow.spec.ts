@@ -6,7 +6,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-import { OWNER, signInWithCode } from './helpers';
+import { lastMailTo, OWNER, signInWithCode } from './helpers';
 
 const PDF = Buffer.from('%PDF-1.7\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n');
 const DOCS = ['Latest Form 990', 'W-9', 'Board of directors list'];
@@ -91,5 +91,18 @@ test('client uploads three documents and approves a deliverable', async ({ page,
   await page.getByRole('navigation', { name: 'Client sections' }).getByRole('link', { name: 'Timeline' }).click();
   await expect(page.getByText(/approved v1 of Program narrative/)).toBeVisible();
   await expect(page.getByText(/completed For the arts council application/)).toBeVisible();
+
+  // M4: a branded update with live blocks, sent now, lands in the client's inbox.
+  await page.getByRole('navigation', { name: 'Client sections' }).getByRole('link', { name: 'Updates' }).click();
+  await page.getByRole('button', { name: 'New update' }).click();
+  await page.getByLabel('Subject').fill('Your April update');
+  await page.getByLabel('Message').fill('Thanks for the documents.');
+  await expect(page.getByLabel('Preview').getByText('Documents we still need')).toBeVisible();
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'Send update' }).click();
+  await expect(page.getByText('Sent', { exact: true })).toBeVisible();
+  const mail = await lastMailTo(page.request, 'dana@harborarts.example');
+  expect(mail.subject).toBe('Your April update');
+  expect(mail.text).toContain('Thanks for the documents.');
   expect(violations).toEqual([]);
 });

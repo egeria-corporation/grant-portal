@@ -1,6 +1,7 @@
 /** Client portal layout (spec §6): mobile-first, one client org at a time. */
 import { createFileRoute, Navigate, Outlet } from '@tanstack/react-router';
 import { usePortalClient } from '@/client/portalClient';
+import { useAutoTimezone } from '@/client/Preferences';
 import { useMe } from '@/lib/session';
 import { AppShell } from '@/ui/AppShell';
 import { Select, Spinner } from '@/ui/controls';
@@ -9,6 +10,7 @@ export const Route = createFileRoute('/portal')({ component: Portal });
 
 function Portal() {
   const me = useMe();
+  useAutoTimezone();
   const { clients, client, select } = usePortalClient();
   if (me.isPending) return <Spinner />;
   const user = me.data?.user;
@@ -21,6 +23,7 @@ function Portal() {
         { to: '/portal/documents', label: 'Documents' },
         { to: '/portal/deliverables', label: 'Deliverables' },
         { to: '/portal/messages', label: 'Messages' },
+        { to: '/portal/updates', label: 'Updates' },
         { to: '/portal/profile', label: 'Profile' },
         { to: '/portal/security', label: 'Security' },
       ]}

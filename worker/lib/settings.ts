@@ -70,6 +70,12 @@ export const SETTINGS = {
   opengrants: z.object({ apiKeyEnc: z.string(), savedAt: z.number() }),
   cloudflare: z.object({ apiTokenEnc: z.string(), savedAt: z.number() }),
   domain: z.object({ hostname: z.string().max(253), status: z.enum(['pending', 'active', 'manual']), updatedAt: z.number() }),
+  /** Public origin for links in email sent outside a request (cron, queue). Learned from staff sign-ins. */
+  origin: z.object({ url: z.string().url().max(300), seenAt: z.number() }),
+  /** Resend webhook for delivery status (spec §7.6). The signing secret is encrypted. */
+  email_webhook: z.object({ id: z.string().max(100), secretEnc: z.string(), createdAt: z.number() }),
+  /** Org defaults: timezone for digests and schedules when a user has none (spec §9). */
+  org: z.object({ timezone: z.string().max(64) }),
   /** Vault upload rules (spec §6.3, §7.4). Absent = defaults in worker/files/policy.ts. */
   files: z.object({
     maxBytes: z.number().int().min(1024 * 1024).max(MAX_MAX_BYTES),

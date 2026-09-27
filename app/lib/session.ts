@@ -26,6 +26,9 @@ export interface Me {
   needsPasskey: boolean;
   passkeyCount: number;
   setupStatus: 'claimed' | 'complete' | null;
+  timezone: string | null;
+  preferences: { activity: 'instant' | 'daily' | 'weekly' | 'off'; reminders: boolean; updates: boolean };
+  emailSuppressed: boolean;
 }
 
 export function useConfig() {

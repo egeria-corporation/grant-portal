@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { usePortalClient } from '@/client/portalClient';
+import { CalendarCard, NotificationsCard } from '@/client/Preferences';
 import { errorMessage, getJson, patchJson, postJson } from '@/lib/api';
 import type { ClientProfile, Member } from '@/lib/types';
 import { Button, Field, Input, Notice, Select, Textarea } from '@/ui/controls';
@@ -147,6 +148,8 @@ function Profile() {
       <h1 className="hd text-[26px] leading-8">Profile & team</h1>
       {profile.data ? <OrgDetails key={profile.dataUpdatedAt} client={profile.data.client} /> : null}
       <Team clientId={client.id} isAdmin={client.role === 'admin'} />
+      <NotificationsCard />
+      <CalendarCard clients={[{ id: client.id, name: client.name }]} allowAll={false} />
     </>
   );
 }

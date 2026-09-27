@@ -57,18 +57,37 @@ export async function canEmailOthers(env: AppEnv): Promise<boolean> {
   return (await sender(env)).verified;
 }
 
+/**
+ * Sends one email and records it in `emails` (spec §9). Transactional and
+ * sign-in mail always goes out; everything else is skipped (and recorded as
+ * `suppressed`) for addresses that hard-bounced or complained (spec §7.6).
+ * Returns the `emails` row ID.
+ */
 export async function sendEmail(
   env: AppEnv,
-  p: { to: string; template: string; rendered: Rendered; from?: string; userId?: string | null; clientId?: string | null },
-): Promise<void> {
+  p: {
+    to: string;
+    template: string;
+    rendered: Rendered;
+    from?: string;
+    userId?: string | null;
+    clientId?: string | null;
+    category?: 'auth' | 'transactional' | 'activity' | 'reminders' | 'updates';
+    headers?: Record<string, string>;
+    suppressed?: boolean;
+  },
+): Promise<string> {
   const id = newId('eml');
-  const from = p.from ?? (await sender(env)).from;
+  const category = p.category ?? 'auth';
+  const skip = Boolean(p.suppressed) && category !== 'auth' && category !== 'transactional';
   await env.DB.prepare(
-    `INSERT INTO emails (id, to_user_id, to_email, client_id, template, subject, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'queued', ?)`,
+    `INSERT INTO emails (id, to_user_id, to_email, client_id, template, category, subject, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, p.userId ?? null, p.to, p.clientId ?? null, p.template, p.rendered.subject, Date.now())
+    .bind(id, p.userId ?? null, p.to, p.clientId ?? null, p.template, category, p.rendered.subject, skip ? 'suppressed' : 'queued', Date.now())
     .run();
+  if (skip) return id;
+  const from = p.from ?? (await sender(env)).from;
   try {
     const out = await emailProvider(env).send({
       from,
@@ -76,6 +95,7 @@ export async function sendEmail(
       subject: p.rendered.subject,
       text: p.rendered.text,
       html: p.rendered.html,
+      headers: p.headers && Object.keys(p.headers).length ? p.headers : undefined,
     });
     await env.DB.prepare("UPDATE emails SET status = 'sent', resend_id = ? WHERE id = ?").bind(out.id, id).run();
   } catch (err) {
@@ -84,4 +104,5 @@ export async function sendEmail(
     console.error(`[email] ${p.template} send failed: ${message}`);
     throw err;
   }
+  return id;
 }

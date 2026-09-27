@@ -11,6 +11,7 @@ import type { AppBindings, AppEnv } from '../env';
 import { eventStmts } from '../lib/events';
 import { HttpError, parseJson } from '../lib/http';
 import { newId } from '../lib/ids';
+import { clientName, notify } from '../notify';
 import { visibleFile, visibleFiles, type FileSummary } from './files';
 
 /** Spec §5.7 example cadence: 3 days before, on the due date, 2 days overdue. Open question §16.7. */
@@ -162,6 +163,16 @@ export const requests = new Hono<AppBindings>()
       ),
       ...eventStmts(c.env, { clientId, actor: user.id, type: 'request.created', payload: { requestId: id, title: body.title, items: body.items.length } }),
     ]);
+    c.executionCtx.waitUntil(
+      (async () =>
+        notify(c.env, {
+          clientId,
+          audience: 'client',
+          kind: 'request.created',
+          actorId: user.id,
+          payload: { requestId: id, title: body.title, message: body.message ?? null, items: body.items.map((i) => i.label), dueAt: body.dueAt ?? null, clientName: await clientName(c.env, clientId) },
+        }))().catch((err) => console.error('[notify] request.created', err)),
+    );
     return c.json({ id }, 201);
   })
 

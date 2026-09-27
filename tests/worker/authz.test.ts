@@ -117,7 +117,25 @@ const POLICY: Record<string, Policy> = {
   'GET /api/clients/:clientId/messages': 'clientScoped',
   'POST /api/clients/:clientId/messages': 'clientScoped',
   'POST /api/clients/:clientId/messages/read': 'clientScoped',
+  'GET /api/clients/:clientId/updates': 'clientScoped',
+  'POST /api/clients/:clientId/updates/preview': 'clientScopedStaff',
+  'POST /api/clients/:clientId/updates': 'clientScopedStaff',
+  'POST /api/clients/:clientId/updates/:updateId/send': 'clientScopedStaff',
+  'POST /api/clients/:clientId/updates/:updateId/cancel': 'clientScopedStaff',
+  'PATCH /api/clients/:clientId/updates/schedules/:scheduleId': 'clientScopedStaff',
+  'DELETE /api/clients/:clientId/updates/schedules/:scheduleId': 'clientScopedStaff',
   'GET /api/today': 'staff',
+  'PUT /api/me/preferences': 'auth',
+  'POST /api/settings/email/webhook': 'owner',
+  'PUT /api/settings/org': 'owner',
+  'GET /api/system/health': 'owner',
+  'POST /api/system/jobs/:key/retry': 'owner',
+  'GET /api/calendar-feeds': 'auth',
+  'POST /api/calendar-feeds': 'auth',
+  'DELETE /api/calendar-feeds/:id': 'auth',
+  'GET /ics/:file': 'public',
+  'POST /u/:token': 'public',
+  'POST /webhooks/resend': 'public',
   'GET /api/templates': 'staff',
   'POST /api/templates': 'staff',
   'PUT /api/templates/:id': 'staff',
@@ -154,6 +172,8 @@ interface Fixture {
   itemId: string;
   deliverableId: string;
   versionId: string;
+  updateId: string;
+  scheduleId: string;
 }
 
 async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
@@ -165,6 +185,8 @@ async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
     itemId: newId('dri'),
     deliverableId: newId('dlv'),
     versionId: newId('dvv'),
+    updateId: newId('upd'),
+    scheduleId: newId('sch'),
   };
   const file = (id: string, shared: number) =>
     testEnv.DB.prepare(
@@ -184,6 +206,14 @@ async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
       f.deliverableId,
       f.fileId,
       ownerId,
+      now,
+    ),
+    testEnv.DB.prepare(
+      "INSERT INTO schedules (id, client_id, kind, rrule, timezone, next_run_at, config_json, requires_review, enabled, created_at) VALUES (?, ?, 'update', 'FREQ=WEEKLY;BYDAY=MO', 'UTC', ?, '{\"subject\":\"x\",\"intro\":null,\"blocks\":[]}', 1, 1, ?)",
+    ).bind(f.scheduleId, clientId, now + 86_400_000, now),
+    testEnv.DB.prepare("INSERT INTO updates (id, client_id, subject, blocks_json, status, created_at) VALUES (?, ?, 'Update', '[]', 'pending_review', ?)").bind(
+      f.updateId,
+      clientId,
       now,
     ),
   ]);
@@ -228,6 +258,9 @@ describe('authorization per route', () => {
       .replace(':itemId', r.itemId)
       .replace(':deliverableId', r.deliverableId)
       .replace(':versionId', r.versionId)
+      .replace(':updateId', r.updateId)
+      .replace(':scheduleId', r.scheduleId)
+      .replace(':key', 'x')
       .replace(':n', '1')
       .replace(':id', 'x_01J00000000000000000000000')
       .replace(':step', 'brand')
@@ -332,7 +365,7 @@ describe('authorization per route', () => {
     // Every route that names a row inside a client, called with client A's ID
     // but client B's row. Scoping only by the URL's client would leak B here.
     const nested = Object.entries(POLICY).filter(
-      ([route, p]) => p.startsWith('clientScoped') && /:(fileId|requestId|itemId|deliverableId|versionId)/.test(route),
+      ([route, p]) => p.startsWith('clientScoped') && /:(fileId|requestId|itemId|deliverableId|versionId|updateId|scheduleId)/.test(route),
     );
     // Valid bodies, so validation can't answer before the lookup does.
     const body = (route: string): unknown => {

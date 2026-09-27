@@ -15,6 +15,7 @@ import { decryptField, encryptField } from '../lib/crypto';
 import { eventStmts } from '../lib/events';
 import { emailField, HttpError, normalizeEmail, parseJson } from '../lib/http';
 import { newId } from '../lib/ids';
+import { reminderSettings } from '../jobs/dispatch';
 import { dataKeys, getSecret } from '../lib/secrets';
 import { deleteDemo, loadDemo } from './demo';
 import { deliverables, listDeliverables } from './deliverables';
@@ -22,6 +23,7 @@ import { uploads, vault } from './files';
 import { createInvite } from './invites';
 import { messages, unreadCount } from './messages';
 import { listRequests, requests } from './requests';
+import { updatesApi } from './updates';
 
 export const CLIENT_STATUSES = ['onboarding', 'active', 'paused', 'archived'] as const;
 export const FUNDING_TYPES = ['federal', 'state', 'foundation', 'corporate'] as const;
@@ -57,6 +59,7 @@ const staffEditable = clientEditable.extend({
     types: z.array(z.enum(FUNDING_TYPES)).max(4),
   }),
   clientCanEdit: z.boolean(),
+  reminders: z.object({ documents: z.boolean(), approvals: z.boolean(), deadlines: z.boolean() }),
 });
 
 type ProfilePatch = Partial<z.infer<typeof staffEditable>>;
@@ -81,6 +84,7 @@ interface ClientRow {
   focus_tags_json: string | null;
   funding_goals_json: string | null;
   client_can_edit: number;
+  reminders_json: string | null;
   is_demo: number;
   created_at: number;
   archived_at: number | null;
@@ -112,6 +116,7 @@ function profileOf(r: ClientRow) {
       ? (JSON.parse(r.funding_goals_json) as z.infer<typeof staffEditable>['fundingGoals'])
       : { targetAmount: null, timeline: null, types: [] },
     clientCanEdit: Boolean(r.client_can_edit),
+    reminders: reminderSettings(r.reminders_json),
     isDemo: Boolean(r.is_demo),
     createdAt: r.created_at,
     lastActivityAt: r.last_activity_at,
@@ -147,6 +152,7 @@ function profileAssignments(p: ProfilePatch): [string, unknown][] {
   if (p.focusTags !== undefined) set('focus_tags_json', JSON.stringify(p.focusTags));
   if (p.fundingGoals !== undefined) set('funding_goals_json', JSON.stringify(p.fundingGoals));
   if (p.clientCanEdit !== undefined) set('client_can_edit', p.clientCanEdit ? 1 : 0);
+  if (p.reminders !== undefined) set('reminders_json', JSON.stringify(p.reminders));
   return cols;
 }
 
@@ -179,6 +185,9 @@ async function overview(env: AppEnv, clientId: string, access: 'staff' | 'admin'
       .bind(clientId)
       .all<{ stage: string; n: number }>(),
   ]);
+  const latestUpdate = await env.DB.prepare("SELECT id, subject, intro, sent_at FROM updates WHERE client_id = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1")
+    .bind(clientId)
+    .first<{ id: string; subject: string; intro: string | null; sent_at: number }>();
   const client = access !== 'staff';
   const openItems = reqs
     .filter((r) => r.status === 'open')
@@ -202,6 +211,7 @@ async function overview(env: AppEnv, clientId: string, access: 'staff' | 'admin'
       ? { id: latest.id, body: latest.body_md.slice(0, 280), createdAt: latest.created_at, author: latest.name ?? latest.email }
       : null,
     pipeline: Object.fromEntries(pipeline.results.map((p) => [p.stage, p.n])) as Record<string, number>,
+    latestUpdate: latestUpdate ? { id: latestUpdate.id, subject: latestUpdate.subject, intro: latestUpdate.intro?.slice(0, 280) ?? null, sentAt: latestUpdate.sent_at } : null,
   };
 }
 
@@ -274,7 +284,7 @@ export const clients = new Hono<AppBindings>()
     const profile = profileOf(row);
     if (access !== 'staff') {
       // Client users see their org basics, not internal fields.
-      const { focusTags: _f, fundingGoals: _g, isDemo: _d, einLast4: _e, hasEin: _h, ...visible } = profile;
+      const { focusTags: _f, fundingGoals: _g, isDemo: _d, einLast4: _e, hasEin: _h, reminders: _r, ...visible } = profile;
       return c.json({ client: { ...visible, canEdit: access === 'admin' && profile.clientCanEdit }, access });
     }
     const staff = await c.env.DB.prepare(
@@ -431,7 +441,8 @@ export const clients = new Hono<AppBindings>()
   .route('/:clientId/uploads', uploads)
   .route('/:clientId/requests', requests)
   .route('/:clientId/deliverables', deliverables)
-  .route('/:clientId/messages', messages);
+  .route('/:clientId/messages', messages)
+  .route('/:clientId/updates', updatesApi);
 
 export const demo = new Hono<AppBindings>()
   .use('*', requireOwner)

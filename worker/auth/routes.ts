@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { sendEmail } from '../email';
 import { signInEmail } from '../email/templates/auth';
+import { loadEmailBrand } from '../email/templates/brand';
 import type { AppBindings, AppEnv } from '../env';
 import { audit } from '../lib/audit';
 import { clientIp, HttpError, keyedHash, normalizeEmail, parseJson, publicOrigin, emailField } from '../lib/http';
@@ -41,8 +42,7 @@ async function sendSignInLink(env: AppEnv, to: string, origin: string, ipHash: s
     uaHash,
     supersede: true,
   });
-  const rendered = signInEmail({
-    firm: await firmName(env),
+  const rendered = await signInEmail(await loadEmailBrand(env, origin), {
     link: `${origin}/auth/verify?t=${link.token}`,
     code: link.code ?? '',
     minutes: SIGNIN_TTL_MS / 60_000,

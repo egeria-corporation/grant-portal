@@ -99,6 +99,7 @@ function Profile({ clientId, client }: { clientId: string; client: ClientProfile
     timeline: client.fundingGoals?.timeline ?? '',
     types: client.fundingGoals?.types ?? [],
     clientCanEdit: client.clientCanEdit,
+    reminders: client.reminders ?? { documents: true, approvals: true, deadlines: true },
   }));
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
   const save = useMutation({
@@ -120,6 +121,7 @@ function Profile({ clientId, client }: { clientId: string; client: ClientProfile
         focusTags: list(f.focusTags),
         fundingGoals: { targetAmount: f.target ? Number(f.target.replace(/[^\d]/g, '')) : null, timeline: f.timeline || null, types: f.types },
         clientCanEdit: f.clientCanEdit,
+        reminders: f.reminders,
       }),
     onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ['client', clientId] }), qc.invalidateQueries({ queryKey: ['clients'] })]),
   });
@@ -190,6 +192,12 @@ function Profile({ clientId, client }: { clientId: string; client: ClientProfile
       <div className="sm:col-span-2">
         <Checkbox checked={f.clientCanEdit} onChange={(v) => set('clientCanEdit', v)} label="Let the client’s admins update these org details in the portal" />
       </div>
+      <fieldset className="flex flex-col gap-2 sm:col-span-2">
+        <legend className="label mb-1">Automatic reminders</legend>
+        <Checkbox checked={f.reminders.documents} onChange={(v) => set('reminders', { ...f.reminders, documents: v })} label="Document requests, on each request’s schedule" />
+        <Checkbox checked={f.reminders.approvals} onChange={(v) => set('reminders', { ...f.reminders, approvals: v })} label="Drafts waiting for the client’s review (after 3 and 7 days)" />
+        <Checkbox checked={f.reminders.deadlines} onChange={(v) => set('reminders', { ...f.reminders, deadlines: v })} label="Grant deadlines (30, 14, 7 and 2 days before)" />
+      </fieldset>
       {save.isError ? (
         <div className="sm:col-span-2">
           <Notice tone="danger">{errorMessage(save.error)}</Notice>

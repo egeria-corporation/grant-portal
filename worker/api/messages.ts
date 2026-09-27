@@ -11,6 +11,7 @@ import type { AppBindings, AppEnv } from '../env';
 import { eventStmts } from '../lib/events';
 import { HttpError, parseJson } from '../lib/http';
 import { newId } from '../lib/ids';
+import { clientName, notify } from '../notify';
 import { visibleFiles } from './files';
 
 const threadField = z
@@ -114,6 +115,20 @@ export const messages = new Hono<AppBindings>()
       markReadStmt(c.env, clientId, user.id, body.thread, now),
       ...eventStmts(c.env, { clientId, actor: user.id, type: 'message.posted', payload: { messageId: id, thread: body.thread || null } }),
     ]);
+    c.executionCtx.waitUntil(
+      (async () => {
+        const about = body.thread
+          ? ((await c.env.DB.prepare('SELECT title FROM deliverables WHERE id = ?').bind(body.thread).first<{ title: string }>())?.title ?? null)
+          : null;
+        await notify(c.env, {
+          clientId,
+          audience: access === 'staff' ? 'client' : 'staff',
+          kind: 'message',
+          actorId: user.id,
+          payload: { messageId: id, thread: body.thread || null, about, from: user.name ?? user.email, clientName: await clientName(c.env, clientId) },
+        });
+      })().catch((err) => console.error('[notify] message', err)),
+    );
     return c.json({ id, createdAt: now }, 201);
   })
 

@@ -99,6 +99,7 @@ const MESSAGES: Record<string, string> = {
   file_quarantined: 'That file didn’t pass the safety check.',
   link_invites_staff_only: 'Invites from the portal are sent by email.',
   no_ein: 'No EIN is on file.',
+  update_not_sendable: 'That update was already sent or cancelled.',
 };
 
 export function errorMessage(err: unknown): string {

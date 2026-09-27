@@ -6,7 +6,9 @@
  *   /auth/*         POST: magic links, codes, passkeys, sign-out; GET: SPA pages
  *   /f/*            authorised file downloads
  *   /brand/*        theme.css, icon, manifest, OG image, uploaded brand files
- *   /webhooks/*     Resend delivery events                     (M4)
+ *   /webhooks/*     Resend delivery events (signed)
+ *   /ics/:token.ics calendar feeds (token-authorized)
+ *   /u/:token       one-click unsubscribe (POST; GET is the SPA page)
  *   everything else SPA HTML with a per-request CSP nonce, or a static file
  */
 import { Hono } from 'hono';
@@ -21,6 +23,9 @@ import { team } from './api/team';
 import { templates } from './api/deliverables';
 import { today } from './api/today';
 import { downloads } from './files/download';
+import { webhooks } from './api/webhooks';
+import { calendarFeeds, ics } from './api/calendar';
+import { unsubscribe } from './api/unsubscribe';
 import { csrf } from './auth/csrf';
 import { auth } from './auth/routes';
 import { brand } from './brand/routes';
@@ -83,9 +88,13 @@ app.route('/api/system', system);
 app.route('/api/today', today);
 app.route('/api/templates', templates);
 app.route('/f', downloads);
+app.route('/webhooks', webhooks);
+app.route('/api/calendar-feeds', calendarFeeds);
+app.route('/ics', ics);
+app.route('/u', unsubscribe);
 
 const notFound = (c: { json: (body: unknown, status: 404) => Response }) => c.json({ error: 'not_found' }, 404);
-for (const prefix of ['/api/*', '/f/*', '/brand/*', '/webhooks/*']) app.all(prefix, notFound);
+for (const prefix of ['/api/*', '/f/*', '/brand/*', '/webhooks/*', '/ics/*']) app.all(prefix, notFound);
 
 app.on(['GET', 'HEAD'], '*', (c) => serveAsset(c.req.raw, c.env, c.get('nonce')));
 app.all('*', (c) => c.json({ error: 'method_not_allowed' }, 405));
