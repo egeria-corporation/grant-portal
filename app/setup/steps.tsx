@@ -12,6 +12,18 @@ export interface StepProps {
   onNext: (state: StepResult) => void;
 }
 
+export interface SecurityPolicy {
+  requirePasskeysForStaff: boolean;
+  staffEmailDomains: string[];
+  staffIpAllowlist: string[];
+  staffIdleHours: number;
+  staffMaxDays: number;
+  clientIdleDays: number;
+  clientMaxDays: number;
+  linkMinutes: number;
+  retention: { deletedFilesDays: number; emailLogDays: number };
+}
+
 export interface Overview {
   brand: { firmName: string; shortName?: string; accent: string; welcome?: string };
   email: { status: 'none' | 'pending' | 'verified' | 'failed'; domain: string | null; from: string; verified: boolean };
@@ -19,8 +31,11 @@ export interface Overview {
   opengrants: { configured: boolean; source: 'env' | 'settings' | null };
   cloudflareToken: boolean;
   turnstile: { configured: boolean; source: string | null; siteKey: string | null };
-  security: { requirePasskeysForStaff: boolean };
+  security: SecurityPolicy;
+  yourIp: string;
   workerName: string | null;
+  deliveryTracking: boolean;
+  timezone: string | null;
 }
 
 export function useOverview() {

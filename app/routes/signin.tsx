@@ -98,6 +98,7 @@ function SignIn() {
   return (
     <AuthShell>
       <div className="flex flex-col gap-5">
+        {config.data?.demo ? <DemoEntry /> : null}
         <div>
           <h1 className="hd text-[22px] leading-7">Sign in</h1>
           <p className="mt-1.5 text-text2">{config.data?.welcome || "Enter your email and we'll send you a sign-in link."}</p>
@@ -141,5 +142,28 @@ function SignIn() {
         </Button>
       </div>
     </AuthShell>
+  );
+}
+
+/** Public demo deployments only (config.demo): enter as a sample consultant or client, no email needed. */
+function DemoEntry() {
+  const enter = useMutation({
+    mutationFn: (as: 'consultant' | 'client') => postJson<{ redirect: string }>('/api/demo-mode/session', { as }),
+    onSuccess: (r) => window.location.assign(r.redirect),
+  });
+  return (
+    <Notice tone="info">
+      <p className="font-medium">This is a public demo.</p>
+      <p className="mt-1">Look around a sample consultancy, as its consultant or as its client. It’s read-only.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" loading={enter.isPending && enter.variables === 'consultant'} onClick={() => enter.mutate('consultant')}>
+          Explore as a consultant
+        </Button>
+        <Button size="sm" variant="secondary" loading={enter.isPending && enter.variables === 'client'} onClick={() => enter.mutate('client')}>
+          Explore as a client
+        </Button>
+      </div>
+      {enter.isError ? <p className="mt-2">{errorMessage(enter.error)}</p> : null}
+    </Notice>
   );
 }

@@ -4,7 +4,26 @@ An open-source, white-label client portal for grant consultants. It runs in your
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/egeria-corporation/grant-portal)
 
-> **Status:** early development (v0.1 in progress). Milestone plan: [`docs/PLAN.md`](docs/PLAN.md).
+> **Status:** v0.1 release candidate. All milestones in [`docs/PLAN.md`](docs/PLAN.md) are built; the release checklist is [`docs/release.md`](docs/release.md).
+
+## What it does
+
+**For your clients:** a quiet, branded portal that answers two questions: "what do you need from me?" and "what's happening with my funding?"
+- Sign in with an emailed link or a 6-digit code. No passwords.
+- Upload requested documents: a checklist with drag and drop, resumable uploads, and a clear "received".
+- Review and approve drafts, with every version kept.
+- Read funding reports and answer each opportunity: **Pursue**, **Not now**, or ask a question.
+- See their own funding pipeline, messages, and updates.
+
+**For you and your team:**
+- A Today screen of what's due and who's waiting.
+- Clients with full profiles (EIN encrypted), document requests with automatic reminders, and a vault with expiry tracking.
+- Deliverables with approvals and templates.
+- Funding reports you build by hand, from CSV, or (optionally) from OpenGrants, with a branded PDF export.
+- A pipeline board per client and across clients.
+- Scheduled client updates, digests, calendar (ICS) feeds, and an audit log.
+
+**Yours to run:** one Cloudflare Worker in your account, your brand everywhere (sign-in, emails, PDFs, link previews), your data exportable at any time.
 
 ## What you need (5 minutes)
 
@@ -12,7 +31,7 @@ An open-source, white-label client portal for grant consultants. It runs in your
 - A **Resend API key** — [resend.com/api-keys](https://resend.com/api-keys). This sends sign-in links and client email.
 - A GitHub (or GitLab) account. The Deploy button copies this repository into it so you own your copy and can take updates.
 
-Optional: an **OpenGrants API key** adds grant search, matching, and funding alerts. The portal works fully without it.
+Optional: an **OpenGrants API key** adds grant search, matching, and funding alerts. The portal works fully without it. See [`docs/opengrants.md`](docs/opengrants.md).
 
 ## Deploy
 
@@ -55,10 +74,30 @@ Without `RESEND_API_KEY`, emails aren't sent: sign-in links and codes are printe
 
 ## Security
 
-Magic-link sign-in with a scanner-safe confirmation step, single-use hashed tokens, passkeys for staff, strict per-request CSP, server-side authorization on every route, encrypted sensitive fields, and an append-only audit log. Details: `docs/security.md` (arrives with M6) and [`docs/SPEC.md` §7](docs/SPEC.md).
+- **Sign-in:** magic links with a scanner-safe confirmation step, single-use hashed tokens, and passkeys for staff.
+- **Owner controls:** staff email-domain and IP restrictions, and configurable session lengths.
+- **Browser protections:** a strict per-request CSP.
+- **Authorization:** checked on every route, with an automated cross-client (IDOR) test for each.
+- **Data at rest:** sensitive fields are encrypted. Downloads are audited, and the audit log is append-only.
+- **Details:** [`docs/security.md`](docs/security.md), including known limitations, and [`docs/SPEC.md` §7](docs/SPEC.md).
 
-Report vulnerabilities privately — see `SECURITY.md`.
+Report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
+
+## Documentation
+
+| Guide | For |
+|---|---|
+| [`docs/deploy.md`](docs/deploy.md) | Deploying, email domain, custom domain, updates |
+| [`docs/operations.md`](docs/operations.md) | Running the portal: team, security settings, export, deleting a client, retention, demo mode |
+| [`docs/theming.md`](docs/theming.md) | Brand, colours, logos |
+| [`docs/opengrants.md`](docs/opengrants.md) | The optional OpenGrants integration and its request budget |
+| [`docs/security.md`](docs/security.md) | Security model and known limitations |
+| [`docs/self-hosting-faq.md`](docs/self-hosting-faq.md) | Costs, limits, backups, common questions |
+
+## Contributing
+
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Apache-2.0.
+[Apache-2.0](LICENSE).

@@ -188,6 +188,12 @@ export const clients = sqliteTable(
     fundingGoalsJson: text('funding_goals_json'),
     ownerUserId: text('owner_user_id').references(() => users.id),
     isDemo: integer('is_demo', { mode: 'boolean' }).notNull().default(false),
+    /** Client admins may edit org basics in the portal (spec §6.7 "when the consultant allows it"). */
+    clientCanEdit: integer('client_can_edit', { mode: 'boolean' }).notNull().default(false),
+    /** Automatic reminders for this client (spec §5.7): `{ documents, approvals, deadlines }`, all on by default. */
+    remindersJson: text('reminders_json'),
+    /** Last timeline event, for "last activity" in the client list. */
+    lastActivityAt: integer('last_activity_at'),
     createdAt: createdAt(),
     archivedAt: integer('archived_at'),
   },
@@ -245,6 +251,15 @@ export const opportunities = sqliteTable(
     })
       .notNull()
       .default('none'),
+    /** grant | contract (OpenGrants lists both). */
+    kind: text('kind').notNull().default('grant'),
+    /** Consultant-only notes; report commentary lives on the report item. */
+    notes: text('notes'),
+    createdBy: text('created_by'),
+    stageChangedAt: integer('stage_changed_at'),
+    /** Last time the deadline was refreshed from the source listing. */
+    refreshedAt: integer('refreshed_at'),
+    updatedAt: integer('updated_at'),
     createdAt: createdAt(),
   },
   (t) => [index('opportunities_client_deadline_idx').on(t.clientId, t.deadlineAt)],
@@ -283,7 +298,11 @@ export const reports = sqliteTable(
       .default('draft'),
     sentAt: integer('sent_at'),
     scheduleId: text('schedule_id').references(() => schedules.id, { onDelete: 'set null' }),
+    /** Set on drafts a recurring report produced and that wait for review. */
+    pendingReview: integer('pending_review', { mode: 'boolean' }).notNull().default(false),
+    sentBy: text('sent_by'),
     createdBy: text('created_by'),
+    updatedAt: integer('updated_at'),
     createdAt: createdAt(),
   },
   (t) => [index('reports_client_created_idx').on(t.clientId, t.createdAt)],
@@ -332,6 +351,10 @@ export const files = sqliteTable(
       .default('pending'),
     sharedWithClient: integer('shared_with_client', { mode: 'boolean' }).notNull().default(true),
     uploadedBy: text('uploaded_by').references(() => users.id),
+    /** R2 multipart upload handle while `upload_status = 'pending'`; never sent to browsers. */
+    multipartUploadId: text('multipart_upload_id'),
+    completedAt: integer('completed_at'),
+    deletedBy: text('deleted_by'),
     createdAt: createdAt(),
     deletedAt: integer('deleted_at'),
   },
@@ -340,6 +363,21 @@ export const files = sqliteTable(
     index('files_client_created_idx').on(t.clientId, t.createdAt),
     index('files_expires_idx').on(t.expiresAt),
   ],
+);
+
+/** Parts of an in-progress multipart upload, so an interrupted upload can resume (spec §6.3). */
+export const fileParts = sqliteTable(
+  'file_parts',
+  {
+    fileId: text('file_id')
+      .notNull()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    partNumber: integer('part_number').notNull(),
+    etag: text('etag').notNull(),
+    size: integer('size').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.fileId, t.partNumber] })],
 );
 
 export const deliverables = sqliteTable(
@@ -358,10 +396,25 @@ export const deliverables = sqliteTable(
       .notNull()
       .default('not_started'),
     templateId: text('template_id'),
+    description: text('description'),
+    updatedAt: integer('updated_at'),
     createdAt: createdAt(),
   },
   (t) => [index('deliverables_client_due_idx').on(t.clientId, t.dueAt)],
 );
+
+/** Reusable deliverable sets with due dates relative to an anchor date (spec §5.5). */
+export const deliverableTemplates = sqliteTable('deliverable_templates', {
+  id: id(),
+  orgId: orgId(),
+  name: text('name').notNull(),
+  description: text('description'),
+  /** `[{ title, side, offsetDays }]`; offsetDays is relative to the anchor (negative = before). */
+  itemsJson: text('items_json').notNull(),
+  createdBy: text('created_by'),
+  createdAt: createdAt(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
 export const deliverableVersions = sqliteTable(
   'deliverable_versions',
@@ -429,6 +482,8 @@ export const docRequestItems = sqliteTable(
     fileId: text('file_id').references(() => files.id),
     fulfilledAt: integer('fulfilled_at'),
     position: integer('position').notNull().default(0),
+    /** Optional hint shown to the client ("the signed PDF, not the draft"). */
+    hint: text('hint'),
   },
   (t) => [index('doc_request_items_request_idx').on(t.docRequestId)],
 );
@@ -467,8 +522,36 @@ export const alerts = sqliteTable(
     scheduleId: text('schedule_id').references(() => schedules.id, { onDelete: 'set null' }),
     lastRunAt: integer('last_run_at'),
     lastResultIdsJson: text('last_result_ids_json'),
+    name: text('name'),
+    /** review: new matches queue for the consultant; report: each run drafts a funding report. */
+    mode: text('mode').notNull().default('review'),
+    /** Last run's outcome: ok | skipped_budget | error. */
+    lastStatus: text('last_status'),
+    createdBy: text('created_by'),
+    createdAt: integer('created_at'),
   },
   (t) => [index('alerts_client_idx').on(t.clientId)],
+);
+
+/** New results from alert runs, waiting for the consultant (spec §5.7 review queue). */
+export const alertMatches = sqliteTable(
+  'alert_matches',
+  {
+    id: id(),
+    alertId: text('alert_id')
+      .notNull()
+      .references(() => alerts.id, { onDelete: 'cascade' }),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    ogId: text('og_id').notNull(),
+    /** The mapped opportunity, as shown in the queue. */
+    dataJson: text('data_json').notNull(),
+    status: text('status', { enum: ['new', 'added', 'dismissed'] }).notNull().default('new'),
+    opportunityId: text('opportunity_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('alert_matches_client_status_idx').on(t.clientId, t.status), uniqueIndex('alert_matches_alert_og_uq').on(t.alertId, t.ogId)],
 );
 
 export const emails = sqliteTable(
@@ -479,6 +562,8 @@ export const emails = sqliteTable(
     toEmail: text('to_email').notNull(),
     clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
     template: text('template').notNull(),
+    /** auth | transactional | activity | reminders | updates: decides unsubscribe and suppression rules. */
+    category: text('category'),
     subject: text('subject').notNull(),
     resendId: text('resend_id'),
     status: text('status', {
@@ -508,6 +593,89 @@ export const messages = sqliteTable(
     readByJson: text('read_by_json'),
   },
   (t) => [index('messages_client_created_idx').on(t.clientId, t.createdAt)],
+);
+
+/**
+ * Things a person should hear about (spec §5.7, §9). Each becomes an email
+ * right away, or waits for that person's daily or weekly digest.
+ */
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: id(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    payloadJson: text('payload_json'),
+    /** instant | digest | skipped */
+    delivery: text('delivery').notNull(),
+    emailId: text('email_id'),
+    createdAt: createdAt(),
+    emailedAt: integer('emailed_at'),
+  },
+  (t) => [index('notifications_user_pending_idx').on(t.userId, t.emailedAt)],
+);
+
+/** Branded client updates (spec §5.7): composed once, or produced by a schedule; blocks fill from live data at send time. */
+export const updates = sqliteTable(
+  'updates',
+  {
+    id: id(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    scheduleId: text('schedule_id').references(() => schedules.id, { onDelete: 'set null' }),
+    subject: text('subject').notNull(),
+    intro: text('intro'),
+    /** Which live blocks to include: deadlines, opportunities, documents, wins. */
+    blocksJson: text('blocks_json').notNull(),
+    /** Frozen block contents once built (what was, or will be, sent). */
+    contentJson: text('content_json'),
+    status: text('status', { enum: ['scheduled', 'pending_review', 'sent', 'cancelled'] }).notNull(),
+    sendAt: integer('send_at'),
+    sentAt: integer('sent_at'),
+    reviewedBy: text('reviewed_by'),
+    createdBy: text('created_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('updates_client_created_idx').on(t.clientId, t.createdAt)],
+);
+
+/** Tokenized, revocable calendar feeds (spec §5.7). Only the token's hash is stored. */
+export const calendarFeeds = sqliteTable(
+  'calendar_feeds',
+  {
+    id: id(),
+    tokenHash: text('token_hash').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Null: every client the user can reach (staff only). */
+    clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+    label: text('label'),
+    createdAt: createdAt(),
+    lastUsedAt: integer('last_used_at'),
+    revokedAt: integer('revoked_at'),
+  },
+  (t) => [uniqueIndex('calendar_feeds_token_uq').on(t.tokenHash), index('calendar_feeds_user_idx').on(t.userId)],
+);
+
+/** How far each person has read each thread (`thread_ref` '' = the client's main thread). */
+export const messageReads = sqliteTable(
+  'message_reads',
+  {
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    threadRef: text('thread_ref').notNull().default(''),
+    lastReadAt: integer('last_read_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.clientId, t.userId, t.threadRef] })],
 );
 
 /** Client timeline (spec §5.2). */

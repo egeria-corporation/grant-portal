@@ -1,9 +1,11 @@
 /**
- * Minimal text-first templates for the M1 auth emails (spec §7.6: plain, no
- * tracking pixels, no click tracking). The branded react-email set replaces
- * the HTML part in M4; the text part stays the source of truth.
- * See docs/DECISIONS.md D-024.
+ * Email rendering (spec §9). Every email has a hand-written plain-text part
+ * (the reference, spec §7.6: text-first, no tracking) and an HTML part built
+ * from react-email components, themed with the firm's brand. HTML is rendered
+ * with React's own streaming renderer; see DECISIONS D-057.
  */
+import type { ReactElement } from 'react';
+
 export interface Rendered {
   subject: string;
   text: string;
@@ -19,32 +21,13 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-type Block = { p: string } | { link: { href: string; label: string } } | { code: string } | { small: string };
+const DOCTYPE = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">';
 
-/** Renders the same blocks as plain text and as simple, table-free HTML. */
-export function render(subject: string, blocks: Block[]): Rendered {
-  const text = blocks
-    .map((b) => {
-      if ('p' in b) return b.p;
-      if ('link' in b) return `${b.link.label}:\n${b.link.href}`;
-      if ('code' in b) return b.code;
-      return b.small;
-    })
-    .join('\n\n');
-
-  const body = blocks
-    .map((b) => {
-      if ('p' in b) return `<p style="margin:0 0 16px">${escapeHtml(b.p)}</p>`;
-      if ('link' in b) {
-        return `<p style="margin:0 0 16px"><a href="${escapeHtml(b.link.href)}">${escapeHtml(b.link.label)}</a></p>`;
-      }
-      if ('code' in b) {
-        return `<p style="margin:0 0 16px;font-size:24px;letter-spacing:4px;font-family:monospace">${escapeHtml(b.code)}</p>`;
-      }
-      return `<p style="margin:0 0 16px;font-size:12px;color:#666666">${escapeHtml(b.small)}</p>`;
-    })
-    .join('');
-
-  const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:15px;line-height:22px;color:#1d1d1d">${body}</body></html>`;
-  return { subject, text, html };
+export async function renderHtml(element: ReactElement): Promise<string> {
+  const { renderToReadableStream } = await import('react-dom/server.edge');
+  const stream = await renderToReadableStream(element);
+  await stream.allReady;
+  const html = await new Response(stream).text();
+  // React adds <!DOCTYPE html> for <html> roots; email clients prefer the XHTML one.
+  return DOCTYPE + html.replace(/^<!DOCTYPE html>/i, '');
 }

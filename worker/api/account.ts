@@ -10,12 +10,20 @@ import type { AppBindings } from '../env';
 import { audit } from '../lib/audit';
 import { HttpError } from '../lib/http';
 import { getSetting } from '../lib/settings';
+import { isValidTimeZone } from '@shared/rrule';
+import { z } from 'zod';
+import { parseJson } from '../lib/http';
+import { PREFS, parsePrefs } from '../notify';
 
-export const me = new Hono<AppBindings>().get('/', requireAuth, async (c) => {
+export const me = new Hono<AppBindings>()
+  .get('/', requireAuth, async (c) => {
   const auth = authOf(c);
-  const passkeys = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys WHERE user_id = ?')
-    .bind(auth.user.id)
-    .first<{ n: number }>();
+  const [passkeys, extra] = await Promise.all([
+    c.env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys WHERE user_id = ?').bind(auth.user.id).first<{ n: number }>(),
+    c.env.DB.prepare('SELECT timezone, notif_prefs_json, email_suppressed_at FROM users WHERE id = ?')
+      .bind(auth.user.id)
+      .first<{ timezone: string | null; notif_prefs_json: string | null; email_suppressed_at: number | null }>(),
+  ]);
   const setup = auth.user.role === 'owner' ? await getSetting(c.env, 'setup') : null;
   return c.json(
     {
@@ -24,11 +32,39 @@ export const me = new Hono<AppBindings>().get('/', requireAuth, async (c) => {
       needsPasskey: auth.needsPasskey,
       passkeyCount: passkeys?.n ?? 0,
       setupStatus: setup?.status ?? null,
+      timezone: extra?.timezone ?? null,
+      preferences: parsePrefs(extra?.notif_prefs_json ?? null),
+      emailSuppressed: Boolean(extra?.email_suppressed_at),
     },
     200,
     { 'Cache-Control': 'no-store' },
   );
-});
+})
+
+  /** Name, time zone and email preferences (spec §6.7, §9). */
+  .put('/preferences', requireAuth, async (c) => {
+    const auth = authOf(c);
+    const body = await parseJson(
+      c,
+      z.object({
+        name: z.string().trim().min(1).max(80).optional(),
+        timezone: z.string().max(64).refine(isValidTimeZone).optional(),
+        preferences: PREFS.partial().optional(),
+        /** Re-enable email after fixing a bounced mailbox. */
+        clearSuppression: z.boolean().optional(),
+      }),
+    );
+    const row = await c.env.DB.prepare('SELECT name, timezone, notif_prefs_json FROM users WHERE id = ?')
+      .bind(auth.user.id)
+      .first<{ name: string | null; timezone: string | null; notif_prefs_json: string | null }>();
+    const prefs = { ...parsePrefs(row?.notif_prefs_json ?? null), ...body.preferences };
+    await c.env.DB.prepare(
+      'UPDATE users SET name = ?, timezone = ?, notif_prefs_json = ?, email_suppressed_at = CASE WHEN ? THEN NULL ELSE email_suppressed_at END WHERE id = ?',
+    )
+      .bind(body.name ?? row?.name ?? null, body.timezone ?? row?.timezone ?? null, JSON.stringify(prefs), body.clearSuppression ? 1 : 0, auth.user.id)
+      .run();
+    return c.json({ preferences: prefs });
+  });
 
 export const sessions = new Hono<AppBindings>()
   .use('*', requireAuth)
@@ -67,13 +103,18 @@ export const passkeysApi = new Hono<AppBindings>()
     return c.json({ ok: true });
   });
 
-/** Client users: which client orgs they belong to (portal home fills out in M3). */
+/** Client users: the client orgs they belong to, with what's waiting in each. */
 export const portal = new Hono<AppBindings>().get('/home', requireClientUser, async (c) => {
+  const userId = authOf(c).user.id;
   const rows = await c.env.DB.prepare(
-    `SELECT c.id, c.name, m.role FROM client_members m JOIN clients c ON c.id = m.client_id
+    `SELECT c.id, c.name, m.role,
+       (SELECT COUNT(*) FROM doc_request_items i JOIN doc_requests r ON r.id = i.doc_request_id
+          WHERE r.client_id = c.id AND r.status = 'open' AND i.fulfilled_at IS NULL) AS openItems,
+       (SELECT COUNT(*) FROM deliverables d WHERE d.client_id = c.id AND d.status = 'in_review' AND d.side = 'consultant') AS awaitingYou
+       FROM client_members m JOIN clients c ON c.id = m.client_id
       WHERE m.user_id = ? AND c.archived_at IS NULL ORDER BY c.name`,
   )
-    .bind(authOf(c).user.id)
+    .bind(userId)
     .all();
-  return c.json({ clients: rows.results });
+  return c.json({ clients: rows.results }, 200, { 'Cache-Control': 'no-store' });
 });

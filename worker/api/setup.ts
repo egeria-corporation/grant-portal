@@ -14,7 +14,9 @@ import { createLink, SIGNIN_TTL_MS } from '../auth/magic';
 import { claimPortal, startSession } from '../auth/signin';
 import { emailConfigured, RESEND_TEST_SENDER, sendEmail } from '../email';
 import { EmailNotConfiguredError } from '../email/provider';
+import { DEFAULT_THEME } from '@shared/theme/tokens';
 import { setupEmail } from '../email/templates/auth';
+import { emailBrand } from '../email/templates/brand';
 import type { AppBindings, AppEnv } from '../env';
 import { audit } from '../lib/audit';
 import { randomBytes, sha256Hex, timingSafeEqual, toHex } from '../lib/crypto';
@@ -93,7 +95,7 @@ export const setup = new Hono<AppBindings>()
     const body = await parseJson(c, z.object({ email: emailField }));
     const to = normalizeEmail(body.email);
     const link = await createLink(c.env, { email: to, purpose: 'setup', ttlMs: SIGNIN_TTL_MS, withCode: true, supersede: true });
-    const rendered = setupEmail({
+    const rendered = await setupEmail(emailBrand({ firm: 'Your client portal', theme: DEFAULT_THEME, origin: null, logoPath: null }), {
       link: `${publicOrigin(c.req.raw)}/auth/verify?t=${link.token}`,
       code: link.code ?? '',
       minutes: SIGNIN_TTL_MS / 60_000,

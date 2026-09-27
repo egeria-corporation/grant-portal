@@ -1,6 +1,7 @@
 /** Consultant workspace layout. The API enforces access; this only routes people to the right place. */
 import { createFileRoute, Navigate, Outlet } from '@tanstack/react-router';
 import { KeyRound } from 'lucide-react';
+import { useAutoTimezone } from '@/client/Preferences';
 import { useMe } from '@/lib/session';
 import { AppShell } from '@/ui/AppShell';
 import { AuthShell } from '@/ui/AuthShell';
@@ -11,6 +12,7 @@ export const Route = createFileRoute('/workspace')({ component: Workspace });
 
 function Workspace() {
   const me = useMe();
+  useAutoTimezone();
   if (me.isPending) return <Spinner />;
   const user = me.data?.user;
   if (!user) return <Navigate to="/signin" replace />;
@@ -30,9 +32,17 @@ function Workspace() {
   }
 
   const nav = [
-    { to: '/workspace', label: 'Home' },
-    ...(user.role === 'owner' ? [{ to: '/workspace/settings/brand', label: 'Brand' }] : []),
-    { to: '/workspace/security', label: 'Security' },
+    { to: '/workspace', label: 'Today', exact: true },
+    { to: '/workspace/clients', label: 'Clients' },
+    { to: '/workspace/pipeline', label: 'Pipeline' },
+    { to: '/workspace/templates', label: 'Templates' },
+    ...(user.role === 'owner'
+      ? [
+          { to: '/workspace/settings', label: 'Settings' },
+          { to: '/workspace/system', label: 'System' },
+        ]
+      : []),
+    { to: '/workspace/security', label: 'Account' },
   ];
   return (
     <AppShell nav={nav}>

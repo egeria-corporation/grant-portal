@@ -2,6 +2,7 @@
  * Public, unauthenticated reads: the brand basics the sign-in screen needs,
  * and (dev only) the local email outbox. Nothing here is secret.
  */
+import { demoMode } from '../demo/mode';
 import { Hono } from 'hono';
 import { readDevOutbox } from '../email/outbox';
 import { assetUrl, getBrandState } from '../brand/state';
@@ -27,6 +28,8 @@ export const publicApi = new Hono<AppBindings>().get('/config', async (c) => {
       devTools: c.env.APP_ENV === 'development' || c.env.APP_ENV === 'test' || import.meta.env.DEV,
       setupStatus: setup?.status ?? 'unclaimed',
       turnstileSiteKey: ts?.siteKey ?? null,
+      /** Public demo deployment (worker/demo/mode.ts): the sign-in page offers demo entry. */
+      demo: demoMode(c.env),
     },
     200,
     { 'Cache-Control': 'no-store' },

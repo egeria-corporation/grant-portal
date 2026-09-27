@@ -51,41 +51,44 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [x] Automated contrast tests: unit (tokens, every preset combination) + axe on every component in E2E; branding grep still green; literal-color guard
 
 ## M3 — Clients, documents, deliverables, messages
-- [ ] Clients CRUD, profile, EIN AES-GCM (masked, reveal audited), statuses, staff assignments
-- [ ] Client members + invites; timeline (`events`)
-- [ ] Document requests + checklist + reminder policy
-- [ ] Vault: folders, tags, expiry; R2 multipart resumable via Worker; size limit, content-type allowlist, SHA-256, scanner hook + `scan_status`
-- [ ] Deliverables: versions, approvals, templates with relative due dates
-- [ ] Messages with vault attachments
-- [ ] Workspace screens: Today, Clients, Client detail tabs, Deliverable detail, Doc request composer
-- [ ] Portal screens (mobile-first): Home, Documents, Deliverable review, Messages, Profile & notifications
-- [ ] Generated IDOR test over every route
-- [ ] Playwright: client uploads 3 docs + approves a deliverable
+- [x] Clients CRUD, profile, EIN AES-GCM (masked, reveal audited behind step-up), statuses, staff assignments (D-054)
+- [x] Client members + invites (client admins by email); timeline (`events`) (D-055)
+- [x] Document requests + checklist + reminder policy (stored; sending is M4) (D-051)
+- [x] Vault: folders, tags, expiry; R2 multipart resumable via Worker; size limit, content-type allowlist, SHA-256, scanner hook + `scan_status` (D-045–D-050)
+- [x] Deliverables: versions, approvals, templates with relative due dates (D-052)
+- [x] Messages with vault attachments; per-deliverable threads (D-053)
+- [x] Workspace screens: Today, Clients, Client detail tabs, Deliverable detail, Doc request composer, Templates
+- [x] Portal screens (mobile-first): Home, Documents, Deliverable review, Messages, Profile & team (notification preferences arrive with digests in M4)
+- [x] Generated IDOR test over every route, with real cross-client fixtures and body references (D-044)
+- [x] Playwright: client uploads 3 docs + approves a deliverable (`tests/e2e/workflow.spec.ts`)
 
 ## M4 — Email, schedules, reminders
-- [ ] `EmailProvider` + Resend adapter; signed webhooks → suppression + timeline
-- [ ] react-email templates (12) themed from brand tokens; magic link text-first, no tracking; `List-Unsubscribe` for non-transactional
-- [ ] Cron dispatcher → Queue; idempotent `(schedule_id, run_at)`; RRULE; review gate; dead-letter → Owner System page
-- [ ] Scheduled update composer with live blocks
-- [ ] Digest preferences + timezone; ICS feeds (tokenized, revocable)
-- [ ] Tests: advancement, idempotency, review gate, digest batching, bounce suppression
-- [ ] Email snapshots for 3 brands
+- [x] `EmailProvider` + Resend adapter; signed webhooks (Svix) → delivery status, suppression, timeline (D-058)
+- [x] react-email templates (10 now; funding report and alert matches arrive with M5) themed from brand tokens; auth mail text-first, no tracking; `List-Unsubscribe` one-click for non-transactional (D-057, D-060)
+- [x] Cron dispatcher → Queue; idempotent keys in `job_runs`; RRULE subset with time zones; review gate; dead letters → Owner System page (D-061, D-062)
+- [x] Scheduled update composer with live blocks (deadlines, opportunities, documents, wins) (D-063)
+- [x] Digest preferences + timezone; ICS feeds (tokenized, revocable, access re-checked) (D-059, D-064)
+- [x] Tests: schedule advancement, idempotency, review gate, digest batching, bounce suppression, webhook signatures, unsubscribe, ICS
+- [x] Email snapshots for 3 brands (`tests/unit/__snapshots__/email/`)
 
 ## M5 — Funding reports & OpenGrants
-- [ ] Manual opportunities, CSV import, report builder, preview toggle, client responses, Pursue → pipeline (+ template)
-- [ ] Pipeline board per client and cross-client
-- [ ] `FundingProvider` + OpenGrants impl from generated client; mapping file; KV cache 6h/24h/7d; budget meter; low-budget mode; fallback
-- [ ] Recurring alerts/reports + review queue
-- [ ] Branded PDF export (approach in DECISIONS)
-- [ ] Attribution per §10.5
-- [ ] Tests with mock provider; live smoke test gated on `OPENGRANTS_API_KEY`
+- [x] Manual opportunities, CSV import, report builder, preview toggle, client responses, Pursue → pipeline (+ template) (D-069, D-070, D-073)
+- [x] Pipeline board per client and cross-client (D-074)
+- [x] `FundingProvider` + OpenGrants impl from generated client; mapping file; KV cache 6h/24h/7d; budget meter; low-budget mode; fallback (D-065–D-067)
+- [x] Recurring alerts/reports + review queue; daily deadline refresh (D-071, D-072)
+- [x] Branded PDF export (D-068)
+- [x] Attribution per §10.5 (D-069)
+- [x] Tests with mock provider; live smoke test gated on `OPENGRANTS_API_KEY`
+- [x] Email templates: funding report, report response, alert matches (snapshots for 3 brands)
 
 ## M6 — Hardening, docs, release
-- [ ] Settings > Security (staff email-domain restriction, IP allowlist, session length; D-031); Team page (roles, remove passkeys); audit log viewer/export; data export ZIP; hard delete client; retention purge; step-up on export/delete
-- [ ] Header set verified by test
-- [ ] Perf budget (client routes < 200 KB gz, build fails otherwise) + Lighthouse
-- [ ] axe on every portal screen + auth
-- [ ] Docs set + community files + LICENSE (Apache-2.0) + issue templates
-- [ ] Demo-mode seed + nightly reset
-- [ ] Attacker self-review vs §7.7 → Known limitations
-- [ ] Release checklist
+- [x] Settings > Security (staff email-domain restriction, IP allowlist, session length; D-031); Team page (roles, remove passkeys); audit log viewer/export; data export ZIP; hard delete client; retention purge; step-up on export/delete (D-075, D-076)
+- [x] Header set verified by test (`tests/worker/headers.test.ts`)
+- [x] Perf budget (client routes < 200 KB gz, build fails otherwise); Lighthouse is a manual step in the release checklist (D-078)
+- [x] axe on every portal screen + auth (WCAG 2.1 AA rule set, D-078)
+- [x] Docs set + community files + LICENSE (Apache-2.0) + issue templates + PR template + Dependabot
+- [x] Demo-mode seed + nightly reset, read-only per spec §14 (D-077)
+- [x] Attacker self-review vs §7.7 → Known limitations (`docs/security.md`)
+- [x] Release checklist (`docs/release.md`)
+
+Still open before tagging v0.1 (manual, see `docs/release.md`): deploy-from-zero timing on a clean account, README screenshots, Lighthouse run, screen-reader pass.

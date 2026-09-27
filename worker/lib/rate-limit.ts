@@ -24,6 +24,7 @@ export const LIMITS = {
   codePerIp: { bucket: 'code:ip', limit: 30, windowSec: 3600 },
   consumePerIp: { bucket: 'consume:ip', limit: 60, windowSec: 3600 },
   setupPerIp: { bucket: 'setup:ip', limit: 10, windowSec: 3600 },
+  demoPerIp: { bucket: 'demo:ip', limit: 20, windowSec: 3600 },
   passkeyPerIp: { bucket: 'passkey:ip', limit: 60, windowSec: 3600 },
 } as const satisfies Record<string, Limit>;
 

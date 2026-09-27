@@ -1,6 +1,6 @@
 /**
  * Email adapter interface (spec §9). Resend is the default implementation;
- * `sendBatch` and `parseWebhook` arrive with the full email pipeline (M4).
+ * Webhook payloads are verified and parsed in ./webhook.ts.
  */
 export interface EmailMessage {
   from: string;
@@ -35,6 +35,8 @@ export interface EmailProvider {
   createDomain(name: string): Promise<SendingDomain>;
   getDomain(id: string): Promise<SendingDomain>;
   verifyDomain(id: string): Promise<void>;
+  /** Registers a delivery-events webhook; returns its signing secret (spec §7.6). */
+  createWebhook(endpoint: string, events: string[]): Promise<{ id: string; signingSecret: string }>;
 }
 
 export class EmailNotConfiguredError extends Error {

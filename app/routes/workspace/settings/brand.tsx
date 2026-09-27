@@ -1,14 +1,11 @@
 /** Settings → Brand (Owner). The API enforces Owner-only; this page just hides itself from others. */
-import { createFileRoute, Navigate } from '@tanstack/react-router';
-import { useMe } from '@/lib/session';
+import { createFileRoute } from '@tanstack/react-router';
 import { BrandEditor } from '@/settings/BrandEditor';
 import { Card } from '@/ui/controls';
 
 export const Route = createFileRoute('/workspace/settings/brand')({ component: BrandSettings });
 
 function BrandSettings() {
-  const me = useMe();
-  if (me.data && me.data.user.role !== 'owner') return <Navigate to="/workspace" replace />;
   return (
     <>
       <div>

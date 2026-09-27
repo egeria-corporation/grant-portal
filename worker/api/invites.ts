@@ -3,11 +3,13 @@
  * links (spec §3.4). Email delivery needs a verified sending domain; before
  * that, or on request, the link is returned once for the inviter to copy.
  */
+import { demoMode } from '../demo/mode';
+import { securityPolicy, staffEmailAllowed } from '../lib/security';
 import type { Context } from 'hono';
 import { createLink, INVITE_TTL_MS } from '../auth/magic';
-import { firmName } from '../auth/signin';
 import { canEmailOthers, sendEmail } from '../email';
 import { inviteEmail } from '../email/templates/auth';
+import { loadEmailBrand } from '../email/templates/brand';
 import type { AppBindings } from '../env';
 import { audit } from '../lib/audit';
 import { HttpError, publicOrigin } from '../lib/http';
@@ -32,12 +34,14 @@ export async function createInvite(
 ): Promise<InviteResult> {
   const inviter = c.get('auth');
   if (!inviter) throw new HttpError(401, 'unauthenticated');
+  if (demoMode(c.env)) throw new HttpError(403, 'demo_mode');
   if (p.delivery === 'email' && !(await canEmailOthers(c.env))) throw new HttpError(409, 'email_domain_unverified');
 
   const existing = await c.env.DB.prepare('SELECT kind, disabled_at FROM users WHERE email = ?')
     .bind(p.email)
     .first<{ kind: string; disabled_at: number | null }>();
   const kind = p.role === 'consultant' ? 'staff' : 'client';
+  if (kind === 'staff' && !staffEmailAllowed(await securityPolicy(c.env), p.email)) throw new HttpError(422, 'domain_not_allowed', { fields: ['email'] });
   if (existing && (existing.kind !== kind || existing.disabled_at)) throw new HttpError(409, 'invite_conflict');
 
   // Never mint a copyable sign-in link for someone who already has an account:
@@ -66,8 +70,7 @@ export async function createInvite(
   await audit(c, { action: 'invite.created', target: p.clientId ?? 'team', meta: { role: p.role, delivery: p.delivery } });
 
   if (p.delivery === 'email') {
-    const rendered = inviteEmail({
-      firm: await firmName(c.env),
+    const rendered = await inviteEmail(await loadEmailBrand(c.env, publicOrigin(c.req.raw)), {
       link: url,
       inviter: inviter.user.name,
       hours: INVITE_TTL_MS / 3600_000,

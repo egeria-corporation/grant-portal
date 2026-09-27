@@ -1,0 +1,48 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Security problems go to the private form instead** (Security → Report a vulnerability).
+        Please don't paste client data, API keys, or email addresses.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in as a consultant
+        2. Open a client's Reports tab
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Consultant workspace
+        - Client portal
+        - Sign-in
+        - Setup wizard / deploy
+        - Email
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Shown on the Owner's System page, or the commit your fork is on.
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device

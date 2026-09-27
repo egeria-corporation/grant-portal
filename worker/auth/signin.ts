@@ -7,11 +7,15 @@ import type { Context } from 'hono';
 import { DEFAULT_ORG_ID } from '../db/schema';
 import { sendEmail } from '../email';
 import { newDeviceEmail } from '../email/templates/auth';
+import { loadEmailBrand } from '../email/templates/brand';
 import type { AppBindings, AppEnv, AuthUser, Role } from '../env';
 import { audit } from '../lib/audit';
+import { eventStmts } from '../lib/events';
+import { rememberOrigin } from '../lib/origin';
 import { randomToken, sha256Hex } from '../lib/crypto';
-import { HttpError, publicOrigin, uaLabel } from '../lib/http';
+import { clientIp, HttpError, publicOrigin, uaLabel } from '../lib/http';
 import { newId } from '../lib/ids';
+import { securityPolicy, staffEmailAllowed, staffIpAllowed } from '../lib/security';
 import { getSetting } from '../lib/settings';
 import { readCookie, writeDeviceCookie } from './cookies';
 import type { LinkRow } from './magic';
@@ -148,9 +152,24 @@ export async function completeLink(c: C, link: LinkRow): Promise<{ redirect: str
 }
 
 export async function startSession(c: C, user: AuthUser, method: 'link' | 'code' | 'passkey'): Promise<{ redirect: string }> {
+  if (user.kind === 'staff') {
+    // Settings → Security: staff email domains and IP allowlist (spec §5.9).
+    const policy = await securityPolicy(c.env);
+    if (!staffEmailAllowed(policy, user.email) || !staffIpAllowed(policy, clientIp(c.req.raw))) {
+      await audit(c, { actor: user.id, action: 'auth.staff_restricted', target: user.id, meta: { method } });
+      throw new HttpError(403, 'staff_signin_restricted');
+    }
+  }
   await createSession(c, user, { stepUp: true });
   await noteDevice(c, user);
   await audit(c, { actor: user.id, action: method === 'passkey' ? 'passkey.signin' : 'auth.signin', target: user.id, meta: { method } });
+  if (user.kind === 'staff') c.executionCtx.waitUntil(rememberOrigin(c.env, c.req.url).catch(() => undefined));
+  if (user.kind === 'client') {
+    // Sign-ins appear on each client's timeline (spec §5.2).
+    const memberships = await c.env.DB.prepare('SELECT client_id FROM client_members WHERE user_id = ?').bind(user.id).all<{ client_id: string }>();
+    const stmts = memberships.results.flatMap((m) => eventStmts(c.env, { clientId: m.client_id, actor: user.id, type: 'member.signed_in', payload: { method } }));
+    if (stmts.length) await c.env.DB.batch(stmts);
+  }
   return { redirect: await homeFor(c.env, user) };
 }
 
@@ -192,8 +211,7 @@ async function noteDevice(c: C, user: AuthUser): Promise<void> {
     const env = c.env;
     c.executionCtx.waitUntil(
       (async () => {
-        const rendered = newDeviceEmail({
-          firm: await firmName(env),
+        const rendered = await newDeviceEmail(await loadEmailBrand(env, origin), {
           device,
           when: new Date(now).toUTCString(),
           securityUrl: `${origin}${user.kind === 'staff' ? '/workspace/security' : '/portal/security'}`,

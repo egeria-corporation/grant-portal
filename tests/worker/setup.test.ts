@@ -154,7 +154,7 @@ describe('wizard', () => {
     const accepted = await contact.post('/auth/link/consume', { token: new URL(invite.link).searchParams.get('t') });
     expect(await accepted.json()).toEqual({ redirect: '/portal' });
     const home = await (await contact.fetch('/api/portal/home')).json<{ clients: { id: string; role: string }[] }>();
-    expect(home.clients).toEqual([{ id, name: 'Hope Shelter', role: 'admin' }]);
+    expect(home.clients).toEqual([{ id, name: 'Hope Shelter', role: 'admin', openItems: 0, awaitingYou: 0 }]);
   });
 
   it('loads and deletes the demo client', async () => {

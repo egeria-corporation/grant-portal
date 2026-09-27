@@ -59,7 +59,7 @@ function Verify() {
         <p className="mt-2 text-text2">
           {expired ? 'Sign-in links work once and expire after 15 minutes. Invites last 72 hours.' : errorMessage(peek.error)}
         </p>
-        <Link to="/signin" className="mt-5 inline-block font-medium text-acc-text hover:underline">
+        <Link to="/signin" className="mt-5 inline-block font-medium text-acc-text underline underline-offset-2">
           Request a new sign-in link
         </Link>
       </AuthShell>

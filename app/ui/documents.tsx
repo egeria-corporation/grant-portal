@@ -9,6 +9,7 @@ import {
   CircleDashed,
   CloudUpload,
   DollarSign,
+  ExternalLink,
   HelpCircle,
   Loader2,
   MessageCircleQuestion,
@@ -58,7 +59,7 @@ export function DropZone({ state, onFiles, accept, hint }: { state: DropState; o
       onFiles([...e.dataTransfer.files]);
     },
   };
-  const hidden = <input ref={input} type="file" multiple accept={accept} className="sr-only" tabIndex={-1} onChange={(e) => onFiles([...(e.target.files ?? [])])} />;
+  const hidden = <input ref={input} type="file" multiple accept={accept} hidden aria-label="Choose files" tabIndex={-1} onChange={(e) => onFiles([...(e.target.files ?? [])])} />;
 
   if (state.kind === 'uploading' || state.kind === 'scanning') {
     return (
@@ -133,7 +134,7 @@ export function DropZone({ state, onFiles, accept, hint }: { state: DropState; o
       <span className="t-h4">{over ? 'Release to upload' : 'Drop files here'}</span>
       <span className="t-sm text-text2">
         or{' '}
-        <button type="button" className="font-medium text-acc-text hover:underline" onClick={pick}>
+        <button type="button" className="font-medium text-acc-text underline underline-offset-2" onClick={pick}>
           choose from your device
         </button>
       </span>
@@ -206,8 +207,11 @@ export function ChecklistItem({
 export interface Opportunity {
   funder: string;
   title: string;
+  /** Empty when unknown. */
   amount: string;
-  dueAt: number;
+  dueAt: number | null;
+  /** The funder's own listing (spec §10.5: client views show it as the source). */
+  href?: string | null;
   fit?: { score: number; label: string };
   eligibility?: { ok: boolean; text: string }[];
   note?: { author: string; text: string };
@@ -220,11 +224,14 @@ export function OpportunityCard({
   response,
   onRespond,
   now,
+  children,
 }: {
   opp: Opportunity;
   response?: { kind: 'pursue' | 'not_now' | 'question'; message: ReactNode; onUndo?: () => void };
   onRespond?: (kind: 'pursue' | 'not_now' | 'question') => void;
   now?: number;
+  /** Extra content under the note (e.g. the question form). */
+  children?: ReactNode;
 }) {
   return (
     <article className="opp">
@@ -241,12 +248,20 @@ export function OpportunityCard({
         ) : null}
       </div>
       <div className="meta">
-        <span className="tabular-nums">
-          <DollarSign aria-hidden className="i" />
-          <b className="font-medium text-text">{opp.amount}</b>
-        </span>
-        <DeadlineChip dueAt={opp.dueAt} now={now} />
+        {opp.amount ? (
+          <span className="tabular-nums">
+            <DollarSign aria-hidden className="i" />
+            <b className="font-medium text-text">{opp.amount}</b>
+          </span>
+        ) : null}
+        {opp.dueAt ? <DeadlineChip dueAt={opp.dueAt} now={now} /> : <span className="t-sm text-text2">Rolling / no deadline listed</span>}
         {opp.fit ? <FitScore score={opp.fit.score} label={opp.fit.label} /> : null}
+        {opp.href ? (
+          <a href={opp.href} target="_blank" rel="noopener noreferrer" className="t-sm text-acc-text underline underline-offset-2">
+            Funder listing
+            <ExternalLink aria-hidden className="i ml-0.5 inline size-3.5" />
+          </a>
+        ) : null}
       </div>
       {opp.eligibility?.length ? (
         <div className="elig">
@@ -267,6 +282,7 @@ export function OpportunityCard({
           </div>
         </div>
       ) : null}
+      {children}
       {response ? (
         <Notice tone={response.kind === 'pursue' ? 'ok' : 'info'} action={response.onUndo ? <Button variant="ghost" size="sm" onClick={response.onUndo}>Undo</Button> : undefined}>
           {response.message}

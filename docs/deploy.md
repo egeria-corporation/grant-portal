@@ -65,6 +65,13 @@ Run on a Cloudflare account that has **no** existing `grant-portal-*` resources,
 
 **Cloudflare API token (optional).** Create one under *My Profile → API Tokens* with **Zone · DNS · Edit** and **Account · Workers Scripts · Edit**, limited to your zone and account. It's stored encrypted with the data key. Remove it in Settings once setup is done.
 
+## Email, schedules and reminders
+
+- **Delivery tracking.** When your sending domain verifies, the portal registers a Resend webhook at `https://<your portal>/webhooks/resend` and stores its signing secret, encrypted. Hard bounces and spam complaints then stop non-essential email to that address, and deliveries appear on each client's timeline. If it didn't turn on (for example the domain verified while you were away), use **System → Email delivery → Turn on**.
+- **Background work.** The Worker's cron triggers (`*/15 * * * *` and `0 13 * * *`) run scheduled updates, reminders and digests, and clean up expired data. Jobs that keep failing after 5 attempts show on **System → Background jobs** with a Retry button.
+- **Time zone.** Schedules and digests use each person's time zone, set automatically from their browser. **System → Default time zone** covers everyone else.
+- **Before the domain is verified** no client or team notifications are sent; they're recorded and skipped.
+
 ## Updates from upstream
 
 The copied repo includes `.github/workflows/sync-upstream.yml`. For it to open pull requests you may need to enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**. Updates that change files under `.github/workflows/` need a `SYNC_TOKEN` secret (fine-grained token with Contents, Pull requests, and Workflows read/write).

@@ -7,6 +7,7 @@
 import { DENSITIES, HEADINGS, NEUTRALS, RADII } from '@shared/theme/tokens';
 import { z } from 'zod';
 import { DEFAULT_ORG_ID } from '../db/schema';
+import { FILE_KINDS, MAX_MAX_BYTES } from '../files/policy';
 import type { AppEnv } from '../env';
 import { decryptField, encryptField } from './crypto';
 import { dataKeys, getSecret } from './secrets';
@@ -62,13 +63,43 @@ export const SETTINGS = {
       .default([]),
     checkedAt: z.number().optional(),
   }),
+  /** Settings → Security (spec §5.9, DECISIONS D-075). Defaults are the pre-M6 behaviour. */
   security: z.object({
     requirePasskeysForStaff: z.boolean().default(false),
+    /** Staff may only sign in with an address at one of these domains. Empty = any. */
+    staffEmailDomains: z.array(z.string().max(253)).max(20).default([]),
+    /** Staff requests only from these IPs/CIDRs. Empty = anywhere. */
+    staffIpAllowlist: z.array(z.string().max(64)).max(50).default([]),
+    staffIdleHours: z.number().int().min(1).max(24).default(12),
+    staffMaxDays: z.number().int().min(1).max(30).default(14),
+    clientIdleDays: z.number().int().min(1).max(30).default(7),
+    clientMaxDays: z.number().int().min(1).max(90).default(30),
+    /** Sign-in link and code lifetime. */
+    linkMinutes: z.number().int().min(5).max(60).default(15),
+    retention: z
+      .object({
+        /** Deleted vault files are purged from storage after this many days. */
+        deletedFilesDays: z.number().int().min(1).max(365).default(30),
+        /** The sent-email log (addresses, subjects, delivery status). */
+        emailLogDays: z.number().int().min(30).max(3650).default(365),
+      })
+      .default({ deletedFilesDays: 30, emailLogDays: 365 }),
   }),
   turnstile: z.object({ siteKey: z.string().max(100), secretEnc: z.string() }),
   opengrants: z.object({ apiKeyEnc: z.string(), savedAt: z.number() }),
   cloudflare: z.object({ apiTokenEnc: z.string(), savedAt: z.number() }),
   domain: z.object({ hostname: z.string().max(253), status: z.enum(['pending', 'active', 'manual']), updatedAt: z.number() }),
+  /** Public origin for links in email sent outside a request (cron, queue). Learned from staff sign-ins. */
+  origin: z.object({ url: z.string().url().max(300), seenAt: z.number() }),
+  /** Resend webhook for delivery status (spec §7.6). The signing secret is encrypted. */
+  email_webhook: z.object({ id: z.string().max(100), secretEnc: z.string(), createdAt: z.number() }),
+  /** Org defaults: timezone for digests and schedules when a user has none (spec §9). */
+  org: z.object({ timezone: z.string().max(64) }),
+  /** Vault upload rules (spec §6.3, §7.4). Absent = defaults in worker/files/policy.ts. */
+  files: z.object({
+    maxBytes: z.number().int().min(1024 * 1024).max(MAX_MAX_BYTES),
+    kinds: z.array(z.enum(FILE_KINDS)).min(1),
+  }),
 } as const;
 
 export type SettingKey = keyof typeof SETTINGS;

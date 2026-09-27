@@ -8,7 +8,7 @@ import type { AppBindings, AppEnv, AuthState, AuthUser } from '../env';
 import { randomToken, sha256Hex } from '../lib/crypto';
 import { clientIp, keyedHash, uaLabel } from '../lib/http';
 import { newId } from '../lib/ids';
-import { getSetting } from '../lib/settings';
+import { securityPolicy, sessionLimits, staffIpAllowed, type SecurityPolicy } from '../lib/security';
 import { clearSessionCookie, readCookie, SESSION_COOKIE, writeSessionCookie } from './cookies';
 
 const HOUR = 3600_000;
@@ -46,7 +46,7 @@ export async function createSession(
   opts: { stepUp: boolean },
 ): Promise<{ publicId: string }> {
   const now = Date.now();
-  const policy = SESSION_POLICY[user.kind];
+  const policy = sessionLimits(await securityPolicy(c.env), user.kind);
   const raw = randomToken(32);
   const publicId = newId('ses');
   await c.env.DB.prepare(
@@ -82,10 +82,9 @@ async function lookup(env: AppEnv, idHash: string): Promise<SessionRow | null> {
     .first<SessionRow>();
 }
 
-async function passkeyGate(env: AppEnv, userId: string, kind: 'staff' | 'client'): Promise<boolean> {
+async function passkeyGate(env: AppEnv, policy: SecurityPolicy, userId: string, kind: 'staff' | 'client'): Promise<boolean> {
   if (kind !== 'staff') return false;
-  const [policy, user, count] = await Promise.all([
-    getSetting(env, 'security'),
+  const [user, count] = await Promise.all([
     env.DB.prepare('SELECT passkey_required FROM users WHERE id = ?').bind(userId).first<{ passkey_required: number }>(),
     env.DB.prepare('SELECT COUNT(*) AS n FROM passkeys WHERE user_id = ?').bind(userId).first<{ n: number }>(),
   ]);
@@ -101,9 +100,12 @@ export const loadSession: MiddlewareHandler<AppBindings> = async (c, next) => {
     const idHash = await sha256Hex(raw);
     const row = await lookup(c.env, idHash);
     const now = Date.now();
-    if (row && row.idle_expires_at > now && row.abs_expires_at > now) {
+    const policy = row ? await securityPolicy(c.env) : null;
+    // Staff sessions from outside the IP allowlist are ignored, not revoked: back on an allowed network they work again.
+    const ipOk = !row || !policy || row.kind !== 'staff' || staffIpAllowed(policy, clientIp(c.req.raw));
+    if (row && policy && ipOk && row.idle_expires_at > now && row.abs_expires_at > now) {
       if (now - row.last_seen_at > TOUCH_INTERVAL_MS) {
-        const idle = Math.min(now + SESSION_POLICY[row.kind].idleMs, row.abs_expires_at);
+        const idle = Math.min(now + sessionLimits(policy, row.kind).idleMs, row.abs_expires_at);
         c.executionCtx.waitUntil(
           c.env.DB.prepare('UPDATE sessions SET last_seen_at = ?, idle_expires_at = ? WHERE id_hash = ?')
             .bind(now, idle, idHash)
@@ -126,9 +128,9 @@ export const loadSession: MiddlewareHandler<AppBindings> = async (c, next) => {
           stepUpAt: row.step_up_at,
           absExpiresAt: row.abs_expires_at,
         },
-        needsPasskey: await passkeyGate(c.env, row.user_id, row.kind),
+        needsPasskey: await passkeyGate(c.env, policy, row.user_id, row.kind),
       } satisfies AuthState);
-    } else {
+    } else if (ipOk) {
       // Unknown, expired, or revoked: drop the cookie so the client stops sending it.
       clearSessionCookie(c);
     }

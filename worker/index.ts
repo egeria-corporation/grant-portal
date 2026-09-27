@@ -4,9 +4,11 @@
  *   /healthz        liveness/readiness
  *   /api/*          JSON API (authz middleware → handlers)
  *   /auth/*         POST: magic links, codes, passkeys, sign-out; GET: SPA pages
- *   /f/*            authorised file downloads                  (M3)
+ *   /f/*            authorised file downloads
  *   /brand/*        theme.css, icon, manifest, OG image, uploaded brand files
- *   /webhooks/*     Resend delivery events                     (M4)
+ *   /webhooks/*     Resend delivery events (signed)
+ *   /ics/:token.ics calendar feeds (token-authorized)
+ *   /u/:token       one-click unsubscribe (POST; GET is the SPA page)
  *   everything else SPA HTML with a per-request CSP nonce, or a static file
  */
 import { Hono } from 'hono';
@@ -18,11 +20,23 @@ import { settingsApi } from './api/settings';
 import { setup } from './api/setup';
 import { system } from './api/system';
 import { team } from './api/team';
+import { templates } from './api/deliverables';
+import { today } from './api/today';
+import { auditApi, dataApi } from './api/data';
+import { demoModeApi } from './api/demo-mode';
+import { fundingApi } from './api/funding';
+import { pipelineApi } from './api/opportunities';
+import { downloads } from './files/download';
+import { webhooks } from './api/webhooks';
+import { calendarFeeds, ics } from './api/calendar';
+import { unsubscribe } from './api/unsubscribe';
 import { csrf } from './auth/csrf';
 import { auth } from './auth/routes';
 import { brand } from './brand/routes';
 import { loadSession } from './auth/session';
+import { demoReadOnly } from './demo/mode';
 import type { AppBindings, AppEnv } from './env';
+import { FUNDING_HTTP, FundingError } from './funding/provider';
 import { HttpError } from './lib/http';
 import { serveAsset } from './html';
 import { handleQueue, handleScheduled } from './jobs';
@@ -60,6 +74,9 @@ app.use('*', async (c, next) => {
 app.use('*', csrf);
 app.use('/api/*', loadSession);
 app.use('/auth/*', loadSession);
+app.use('/f/*', loadSession);
+app.use('/api/*', demoReadOnly);
+app.use('/auth/*', demoReadOnly);
 
 app.route('/healthz', health);
 app.route('/brand', brand);
@@ -76,9 +93,21 @@ app.route('/api/clients', clients);
 app.route('/api/demo', demo);
 app.route('/api/portal', portal);
 app.route('/api/system', system);
+app.route('/api/today', today);
+app.route('/api/funding', fundingApi);
+app.route('/api/pipeline', pipelineApi);
+app.route('/api/audit', auditApi);
+app.route('/api/data', dataApi);
+app.route('/api/demo-mode', demoModeApi);
+app.route('/api/templates', templates);
+app.route('/f', downloads);
+app.route('/webhooks', webhooks);
+app.route('/api/calendar-feeds', calendarFeeds);
+app.route('/ics', ics);
+app.route('/u', unsubscribe);
 
 const notFound = (c: { json: (body: unknown, status: 404) => Response }) => c.json({ error: 'not_found' }, 404);
-for (const prefix of ['/api/*', '/f/*', '/brand/*', '/webhooks/*']) app.all(prefix, notFound);
+for (const prefix of ['/api/*', '/f/*', '/brand/*', '/webhooks/*', '/ics/*']) app.all(prefix, notFound);
 
 app.on(['GET', 'HEAD'], '*', (c) => serveAsset(c.req.raw, c.env, c.get('nonce')));
 app.all('*', (c) => c.json({ error: 'method_not_allowed' }, 405));
@@ -88,6 +117,10 @@ app.onError((err, c) => {
     const headers: Record<string, string> = {};
     if (err.status === 429 && typeof err.extra.retryAfterSec === 'number') headers['Retry-After'] = String(err.extra.retryAfterSec);
     return c.json({ error: err.code, ...err.extra }, err.status, headers);
+  }
+  if (err instanceof FundingError) {
+    const m = FUNDING_HTTP[err.code];
+    return c.json({ error: m.error }, m.status);
   }
   if (err instanceof SecretUnavailableError) {
     return c.json({ error: 'initialising' }, 503, { 'Retry-After': '5' });

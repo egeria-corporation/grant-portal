@@ -9,6 +9,8 @@ const PORT = 4173;
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
+  // One worker: specs share one portal, and the wizard spec must claim it first (files run in name order).
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',

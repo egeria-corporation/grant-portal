@@ -71,4 +71,9 @@ export class ResendProvider implements EmailProvider {
   async verifyDomain(id: string): Promise<void> {
     await this.call('POST', `/domains/${encodeURIComponent(id)}/verify`);
   }
+
+  async createWebhook(endpoint: string, events: string[]): Promise<{ id: string; signingSecret: string }> {
+    const out = await this.call<{ id: string; signing_secret: string }>('POST', '/webhooks', { endpoint, events });
+    return { id: out.id, signingSecret: out.signing_secret };
+  }
 }

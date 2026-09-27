@@ -3,27 +3,8 @@
  * Owner in the workspace → sign out → sign back in with the emailed code.
  * Emails are read from the local dev outbox (APP_ENV=development in E2E).
  */
-import { expect, type APIRequestContext, test } from '@playwright/test';
-
-interface Mail {
-  to: string;
-  subject: string;
-  text: string;
-}
-
-async function lastMailTo(request: APIRequestContext, to: string): Promise<Mail> {
-  let found: Mail | undefined;
-  await expect
-    .poll(async () => {
-      const { messages } = (await (await request.get('/api/dev/outbox')).json()) as { messages: Mail[] };
-      found = [...messages].reverse().find((m) => m.to === to);
-      return Boolean(found);
-    })
-    .toBe(true);
-  return found as Mail;
-}
-
-const OWNER = 'owner@example.org';
+import { expect, test } from '@playwright/test';
+import { lastMailTo, OWNER } from './helpers';
 
 test('fresh deploy: claim, finish the wizard, land in the workspace, sign in again', async ({ page, context }) => {
   const violations: string[] = [];
@@ -79,9 +60,10 @@ test('fresh deploy: claim, finish the wizard, land in the workspace, sign in aga
   await page.getByRole('button', { name: 'Go to your workspace' }).click();
 
   await expect(page).toHaveURL(/\/workspace$/);
-  await expect(page.getByText(`Signed in as ${OWNER}`)).toBeVisible();
-  await expect(page.getByText('Sample: Riverbend Community Pantry')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
   await expect(page.getByText('Client invites and emails are paused')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Clients' }).click();
+  await expect(page.getByRole('link', { name: 'Sample: Riverbend Community Pantry' })).toBeVisible();
   expect(await page.title()).toBe('Northwind Grants');
 
   // The brand is applied by the server's theme.css, not client-side patching.

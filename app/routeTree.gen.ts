@@ -17,10 +17,42 @@ import { Route as WorkspaceRouteRouteImport } from './routes/workspace/route'
 import { Route as DevKitchenSinkRouteImport } from './routes/[_]dev/kitchen-sink'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
+import { Route as PortalDocumentsRouteImport } from './routes/portal/documents'
+import { Route as PortalMessagesRouteImport } from './routes/portal/messages'
+import { Route as PortalProfileRouteImport } from './routes/portal/profile'
 import { Route as PortalSecurityRouteImport } from './routes/portal/security'
+import { Route as PortalUpdatesRouteImport } from './routes/portal/updates'
+import { Route as UTokenRouteImport } from './routes/u/$token'
 import { Route as WorkspaceIndexRouteImport } from './routes/workspace/index'
+import { Route as WorkspacePipelineRouteImport } from './routes/workspace/pipeline'
 import { Route as WorkspaceSecurityRouteImport } from './routes/workspace/security'
+import { Route as WorkspaceSettingsRouteRouteImport } from './routes/workspace/settings/route'
+import { Route as WorkspaceSystemRouteImport } from './routes/workspace/system'
+import { Route as WorkspaceTemplatesRouteImport } from './routes/workspace/templates'
+import { Route as PortalDeliverablesIndexRouteImport } from './routes/portal/deliverables/index'
+import { Route as PortalDeliverablesDeliverableIdRouteImport } from './routes/portal/deliverables/$deliverableId'
+import { Route as PortalReportsIndexRouteImport } from './routes/portal/reports/index'
+import { Route as PortalReportsReportIdRouteImport } from './routes/portal/reports/$reportId'
+import { Route as WorkspaceClientsIndexRouteImport } from './routes/workspace/clients/index'
+import { Route as WorkspaceClientsClientIdRouteRouteImport } from './routes/workspace/clients/$clientId/route'
+import { Route as WorkspaceSettingsAuditRouteImport } from './routes/workspace/settings/audit'
 import { Route as WorkspaceSettingsBrandRouteImport } from './routes/workspace/settings/brand'
+import { Route as WorkspaceSettingsDataRouteImport } from './routes/workspace/settings/data'
+import { Route as WorkspaceSettingsSecurityRouteImport } from './routes/workspace/settings/security'
+import { Route as WorkspaceSettingsTeamRouteImport } from './routes/workspace/settings/team'
+import { Route as WorkspaceClientsClientIdIndexRouteImport } from './routes/workspace/clients/$clientId/index'
+import { Route as WorkspaceClientsClientIdDocumentsRouteImport } from './routes/workspace/clients/$clientId/documents'
+import { Route as WorkspaceClientsClientIdFundingRouteImport } from './routes/workspace/clients/$clientId/funding'
+import { Route as WorkspaceClientsClientIdMessagesRouteImport } from './routes/workspace/clients/$clientId/messages'
+import { Route as WorkspaceClientsClientIdPeopleRouteImport } from './routes/workspace/clients/$clientId/people'
+import { Route as WorkspaceClientsClientIdPipelineRouteImport } from './routes/workspace/clients/$clientId/pipeline'
+import { Route as WorkspaceClientsClientIdTimelineRouteImport } from './routes/workspace/clients/$clientId/timeline'
+import { Route as WorkspaceClientsClientIdUpdatesRouteImport } from './routes/workspace/clients/$clientId/updates'
+import { Route as WorkspaceClientsClientIdDeliverablesIndexRouteImport } from './routes/workspace/clients/$clientId/deliverables/index'
+import { Route as WorkspaceClientsClientIdDeliverablesDeliverableIdRouteImport } from './routes/workspace/clients/$clientId/deliverables/$deliverableId'
+import { Route as WorkspaceClientsClientIdReportsIndexRouteImport } from './routes/workspace/clients/$clientId/reports/index'
+import { Route as WorkspaceClientsClientIdReportsReportIdRouteImport } from './routes/workspace/clients/$clientId/reports/$reportId'
+import { Route as WorkspaceClientsClientIdRequestsNewRouteImport } from './routes/workspace/clients/$clientId/requests/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -62,14 +94,44 @@ const PortalIndexRoute = PortalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PortalRouteRoute,
 } as any)
+const PortalDocumentsRoute = PortalDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalMessagesRoute = PortalMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalProfileRoute = PortalProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
 const PortalSecurityRoute = PortalSecurityRouteImport.update({
   id: '/security',
   path: '/security',
   getParentRoute: () => PortalRouteRoute,
 } as any)
+const PortalUpdatesRoute = PortalUpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const UTokenRoute = UTokenRouteImport.update({
+  id: '/u/$token',
+  path: '/u/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkspaceIndexRoute = WorkspaceIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const WorkspacePipelineRoute = WorkspacePipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
   getParentRoute: () => WorkspaceRouteRoute,
 } as any)
 const WorkspaceSecurityRoute = WorkspaceSecurityRouteImport.update({
@@ -77,11 +139,157 @@ const WorkspaceSecurityRoute = WorkspaceSecurityRouteImport.update({
   path: '/security',
   getParentRoute: () => WorkspaceRouteRoute,
 } as any)
-const WorkspaceSettingsBrandRoute = WorkspaceSettingsBrandRouteImport.update({
-  id: '/settings/brand',
-  path: '/settings/brand',
+const WorkspaceSettingsRouteRoute = WorkspaceSettingsRouteRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => WorkspaceRouteRoute,
 } as any)
+const WorkspaceSystemRoute = WorkspaceSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const WorkspaceTemplatesRoute = WorkspaceTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const PortalDeliverablesIndexRoute = PortalDeliverablesIndexRouteImport.update({
+  id: '/deliverables/',
+  path: '/deliverables/',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalDeliverablesDeliverableIdRoute =
+  PortalDeliverablesDeliverableIdRouteImport.update({
+    id: '/deliverables/$deliverableId',
+    path: '/deliverables/$deliverableId',
+    getParentRoute: () => PortalRouteRoute,
+  } as any)
+const PortalReportsIndexRoute = PortalReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalReportsReportIdRoute = PortalReportsReportIdRouteImport.update({
+  id: '/reports/$reportId',
+  path: '/reports/$reportId',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const WorkspaceClientsIndexRoute = WorkspaceClientsIndexRouteImport.update({
+  id: '/clients/',
+  path: '/clients/',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const WorkspaceClientsClientIdRouteRoute =
+  WorkspaceClientsClientIdRouteRouteImport.update({
+    id: '/clients/$clientId',
+    path: '/clients/$clientId',
+    getParentRoute: () => WorkspaceRouteRoute,
+  } as any)
+const WorkspaceSettingsAuditRoute = WorkspaceSettingsAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => WorkspaceSettingsRouteRoute,
+} as any)
+const WorkspaceSettingsBrandRoute = WorkspaceSettingsBrandRouteImport.update({
+  id: '/brand',
+  path: '/brand',
+  getParentRoute: () => WorkspaceSettingsRouteRoute,
+} as any)
+const WorkspaceSettingsDataRoute = WorkspaceSettingsDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => WorkspaceSettingsRouteRoute,
+} as any)
+const WorkspaceSettingsSecurityRoute =
+  WorkspaceSettingsSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => WorkspaceSettingsRouteRoute,
+  } as any)
+const WorkspaceSettingsTeamRoute = WorkspaceSettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => WorkspaceSettingsRouteRoute,
+} as any)
+const WorkspaceClientsClientIdIndexRoute =
+  WorkspaceClientsClientIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdDocumentsRoute =
+  WorkspaceClientsClientIdDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdFundingRoute =
+  WorkspaceClientsClientIdFundingRouteImport.update({
+    id: '/funding',
+    path: '/funding',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdMessagesRoute =
+  WorkspaceClientsClientIdMessagesRouteImport.update({
+    id: '/messages',
+    path: '/messages',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdPeopleRoute =
+  WorkspaceClientsClientIdPeopleRouteImport.update({
+    id: '/people',
+    path: '/people',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdPipelineRoute =
+  WorkspaceClientsClientIdPipelineRouteImport.update({
+    id: '/pipeline',
+    path: '/pipeline',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdTimelineRoute =
+  WorkspaceClientsClientIdTimelineRouteImport.update({
+    id: '/timeline',
+    path: '/timeline',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdUpdatesRoute =
+  WorkspaceClientsClientIdUpdatesRouteImport.update({
+    id: '/updates',
+    path: '/updates',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdDeliverablesIndexRoute =
+  WorkspaceClientsClientIdDeliverablesIndexRouteImport.update({
+    id: '/deliverables/',
+    path: '/deliverables/',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdDeliverablesDeliverableIdRoute =
+  WorkspaceClientsClientIdDeliverablesDeliverableIdRouteImport.update({
+    id: '/deliverables/$deliverableId',
+    path: '/deliverables/$deliverableId',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdReportsIndexRoute =
+  WorkspaceClientsClientIdReportsIndexRouteImport.update({
+    id: '/reports/',
+    path: '/reports/',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdReportsReportIdRoute =
+  WorkspaceClientsClientIdReportsReportIdRouteImport.update({
+    id: '/reports/$reportId',
+    path: '/reports/$reportId',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdRequestsNewRoute =
+  WorkspaceClientsClientIdRequestsNewRouteImport.update({
+    id: '/requests/new',
+    path: '/requests/new',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,25 +297,88 @@ export interface FileRoutesByFullPath {
   '/workspace': typeof WorkspaceRouteRouteWithChildren
   '/setup': typeof SetupRoute
   '/signin': typeof SigninRoute
+  '/workspace/settings': typeof WorkspaceSettingsRouteRouteWithChildren
   '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/portal/documents': typeof PortalDocumentsRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/profile': typeof PortalProfileRoute
   '/portal/security': typeof PortalSecurityRoute
+  '/portal/updates': typeof PortalUpdatesRoute
+  '/u/$token': typeof UTokenRoute
+  '/workspace/pipeline': typeof WorkspacePipelineRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
+  '/workspace/system': typeof WorkspaceSystemRoute
+  '/workspace/templates': typeof WorkspaceTemplatesRoute
   '/portal/': typeof PortalIndexRoute
   '/workspace/': typeof WorkspaceIndexRoute
+  '/workspace/clients/$clientId': typeof WorkspaceClientsClientIdRouteRouteWithChildren
+  '/portal/deliverables/$deliverableId': typeof PortalDeliverablesDeliverableIdRoute
+  '/portal/reports/$reportId': typeof PortalReportsReportIdRoute
+  '/workspace/settings/audit': typeof WorkspaceSettingsAuditRoute
   '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
+  '/workspace/settings/data': typeof WorkspaceSettingsDataRoute
+  '/workspace/settings/security': typeof WorkspaceSettingsSecurityRoute
+  '/workspace/settings/team': typeof WorkspaceSettingsTeamRoute
+  '/portal/deliverables/': typeof PortalDeliverablesIndexRoute
+  '/portal/reports/': typeof PortalReportsIndexRoute
+  '/workspace/clients/': typeof WorkspaceClientsIndexRoute
+  '/workspace/clients/$clientId/documents': typeof WorkspaceClientsClientIdDocumentsRoute
+  '/workspace/clients/$clientId/funding': typeof WorkspaceClientsClientIdFundingRoute
+  '/workspace/clients/$clientId/messages': typeof WorkspaceClientsClientIdMessagesRoute
+  '/workspace/clients/$clientId/people': typeof WorkspaceClientsClientIdPeopleRoute
+  '/workspace/clients/$clientId/pipeline': typeof WorkspaceClientsClientIdPipelineRoute
+  '/workspace/clients/$clientId/timeline': typeof WorkspaceClientsClientIdTimelineRoute
+  '/workspace/clients/$clientId/updates': typeof WorkspaceClientsClientIdUpdatesRoute
+  '/workspace/clients/$clientId/': typeof WorkspaceClientsClientIdIndexRoute
+  '/workspace/clients/$clientId/deliverables/$deliverableId': typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  '/workspace/clients/$clientId/reports/$reportId': typeof WorkspaceClientsClientIdReportsReportIdRoute
+  '/workspace/clients/$clientId/requests/new': typeof WorkspaceClientsClientIdRequestsNewRoute
+  '/workspace/clients/$clientId/deliverables/': typeof WorkspaceClientsClientIdDeliverablesIndexRoute
+  '/workspace/clients/$clientId/reports/': typeof WorkspaceClientsClientIdReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/setup': typeof SetupRoute
   '/signin': typeof SigninRoute
+  '/workspace/settings': typeof WorkspaceSettingsRouteRouteWithChildren
   '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/portal/documents': typeof PortalDocumentsRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/profile': typeof PortalProfileRoute
   '/portal/security': typeof PortalSecurityRoute
+  '/portal/updates': typeof PortalUpdatesRoute
+  '/u/$token': typeof UTokenRoute
+  '/workspace/pipeline': typeof WorkspacePipelineRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
+  '/workspace/system': typeof WorkspaceSystemRoute
+  '/workspace/templates': typeof WorkspaceTemplatesRoute
   '/portal': typeof PortalIndexRoute
   '/workspace': typeof WorkspaceIndexRoute
+  '/portal/deliverables/$deliverableId': typeof PortalDeliverablesDeliverableIdRoute
+  '/portal/reports/$reportId': typeof PortalReportsReportIdRoute
+  '/workspace/settings/audit': typeof WorkspaceSettingsAuditRoute
   '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
+  '/workspace/settings/data': typeof WorkspaceSettingsDataRoute
+  '/workspace/settings/security': typeof WorkspaceSettingsSecurityRoute
+  '/workspace/settings/team': typeof WorkspaceSettingsTeamRoute
+  '/portal/deliverables': typeof PortalDeliverablesIndexRoute
+  '/portal/reports': typeof PortalReportsIndexRoute
+  '/workspace/clients': typeof WorkspaceClientsIndexRoute
+  '/workspace/clients/$clientId/documents': typeof WorkspaceClientsClientIdDocumentsRoute
+  '/workspace/clients/$clientId/funding': typeof WorkspaceClientsClientIdFundingRoute
+  '/workspace/clients/$clientId/messages': typeof WorkspaceClientsClientIdMessagesRoute
+  '/workspace/clients/$clientId/people': typeof WorkspaceClientsClientIdPeopleRoute
+  '/workspace/clients/$clientId/pipeline': typeof WorkspaceClientsClientIdPipelineRoute
+  '/workspace/clients/$clientId/timeline': typeof WorkspaceClientsClientIdTimelineRoute
+  '/workspace/clients/$clientId/updates': typeof WorkspaceClientsClientIdUpdatesRoute
+  '/workspace/clients/$clientId': typeof WorkspaceClientsClientIdIndexRoute
+  '/workspace/clients/$clientId/deliverables/$deliverableId': typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  '/workspace/clients/$clientId/reports/$reportId': typeof WorkspaceClientsClientIdReportsReportIdRoute
+  '/workspace/clients/$clientId/requests/new': typeof WorkspaceClientsClientIdRequestsNewRoute
+  '/workspace/clients/$clientId/deliverables': typeof WorkspaceClientsClientIdDeliverablesIndexRoute
+  '/workspace/clients/$clientId/reports': typeof WorkspaceClientsClientIdReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,13 +387,45 @@ export interface FileRoutesById {
   '/workspace': typeof WorkspaceRouteRouteWithChildren
   '/setup': typeof SetupRoute
   '/signin': typeof SigninRoute
+  '/workspace/settings': typeof WorkspaceSettingsRouteRouteWithChildren
   '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/portal/documents': typeof PortalDocumentsRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/profile': typeof PortalProfileRoute
   '/portal/security': typeof PortalSecurityRoute
+  '/portal/updates': typeof PortalUpdatesRoute
+  '/u/$token': typeof UTokenRoute
+  '/workspace/pipeline': typeof WorkspacePipelineRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
+  '/workspace/system': typeof WorkspaceSystemRoute
+  '/workspace/templates': typeof WorkspaceTemplatesRoute
   '/portal/': typeof PortalIndexRoute
   '/workspace/': typeof WorkspaceIndexRoute
+  '/workspace/clients/$clientId': typeof WorkspaceClientsClientIdRouteRouteWithChildren
+  '/portal/deliverables/$deliverableId': typeof PortalDeliverablesDeliverableIdRoute
+  '/portal/reports/$reportId': typeof PortalReportsReportIdRoute
+  '/workspace/settings/audit': typeof WorkspaceSettingsAuditRoute
   '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
+  '/workspace/settings/data': typeof WorkspaceSettingsDataRoute
+  '/workspace/settings/security': typeof WorkspaceSettingsSecurityRoute
+  '/workspace/settings/team': typeof WorkspaceSettingsTeamRoute
+  '/portal/deliverables/': typeof PortalDeliverablesIndexRoute
+  '/portal/reports/': typeof PortalReportsIndexRoute
+  '/workspace/clients/': typeof WorkspaceClientsIndexRoute
+  '/workspace/clients/$clientId/documents': typeof WorkspaceClientsClientIdDocumentsRoute
+  '/workspace/clients/$clientId/funding': typeof WorkspaceClientsClientIdFundingRoute
+  '/workspace/clients/$clientId/messages': typeof WorkspaceClientsClientIdMessagesRoute
+  '/workspace/clients/$clientId/people': typeof WorkspaceClientsClientIdPeopleRoute
+  '/workspace/clients/$clientId/pipeline': typeof WorkspaceClientsClientIdPipelineRoute
+  '/workspace/clients/$clientId/timeline': typeof WorkspaceClientsClientIdTimelineRoute
+  '/workspace/clients/$clientId/updates': typeof WorkspaceClientsClientIdUpdatesRoute
+  '/workspace/clients/$clientId/': typeof WorkspaceClientsClientIdIndexRoute
+  '/workspace/clients/$clientId/deliverables/$deliverableId': typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  '/workspace/clients/$clientId/reports/$reportId': typeof WorkspaceClientsClientIdReportsReportIdRoute
+  '/workspace/clients/$clientId/requests/new': typeof WorkspaceClientsClientIdRequestsNewRoute
+  '/workspace/clients/$clientId/deliverables/': typeof WorkspaceClientsClientIdDeliverablesIndexRoute
+  '/workspace/clients/$clientId/reports/': typeof WorkspaceClientsClientIdReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -132,25 +435,88 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/setup'
     | '/signin'
+    | '/workspace/settings'
     | '/_dev/kitchen-sink'
     | '/auth/verify'
+    | '/portal/documents'
+    | '/portal/messages'
+    | '/portal/profile'
     | '/portal/security'
+    | '/portal/updates'
+    | '/u/$token'
+    | '/workspace/pipeline'
     | '/workspace/security'
+    | '/workspace/system'
+    | '/workspace/templates'
     | '/portal/'
     | '/workspace/'
+    | '/workspace/clients/$clientId'
+    | '/portal/deliverables/$deliverableId'
+    | '/portal/reports/$reportId'
+    | '/workspace/settings/audit'
     | '/workspace/settings/brand'
+    | '/workspace/settings/data'
+    | '/workspace/settings/security'
+    | '/workspace/settings/team'
+    | '/portal/deliverables/'
+    | '/portal/reports/'
+    | '/workspace/clients/'
+    | '/workspace/clients/$clientId/documents'
+    | '/workspace/clients/$clientId/funding'
+    | '/workspace/clients/$clientId/messages'
+    | '/workspace/clients/$clientId/people'
+    | '/workspace/clients/$clientId/pipeline'
+    | '/workspace/clients/$clientId/timeline'
+    | '/workspace/clients/$clientId/updates'
+    | '/workspace/clients/$clientId/'
+    | '/workspace/clients/$clientId/deliverables/$deliverableId'
+    | '/workspace/clients/$clientId/reports/$reportId'
+    | '/workspace/clients/$clientId/requests/new'
+    | '/workspace/clients/$clientId/deliverables/'
+    | '/workspace/clients/$clientId/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/setup'
     | '/signin'
+    | '/workspace/settings'
     | '/_dev/kitchen-sink'
     | '/auth/verify'
+    | '/portal/documents'
+    | '/portal/messages'
+    | '/portal/profile'
     | '/portal/security'
+    | '/portal/updates'
+    | '/u/$token'
+    | '/workspace/pipeline'
     | '/workspace/security'
+    | '/workspace/system'
+    | '/workspace/templates'
     | '/portal'
     | '/workspace'
+    | '/portal/deliverables/$deliverableId'
+    | '/portal/reports/$reportId'
+    | '/workspace/settings/audit'
     | '/workspace/settings/brand'
+    | '/workspace/settings/data'
+    | '/workspace/settings/security'
+    | '/workspace/settings/team'
+    | '/portal/deliverables'
+    | '/portal/reports'
+    | '/workspace/clients'
+    | '/workspace/clients/$clientId/documents'
+    | '/workspace/clients/$clientId/funding'
+    | '/workspace/clients/$clientId/messages'
+    | '/workspace/clients/$clientId/people'
+    | '/workspace/clients/$clientId/pipeline'
+    | '/workspace/clients/$clientId/timeline'
+    | '/workspace/clients/$clientId/updates'
+    | '/workspace/clients/$clientId'
+    | '/workspace/clients/$clientId/deliverables/$deliverableId'
+    | '/workspace/clients/$clientId/reports/$reportId'
+    | '/workspace/clients/$clientId/requests/new'
+    | '/workspace/clients/$clientId/deliverables'
+    | '/workspace/clients/$clientId/reports'
   id:
     | '__root__'
     | '/'
@@ -158,13 +524,45 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/setup'
     | '/signin'
+    | '/workspace/settings'
     | '/_dev/kitchen-sink'
     | '/auth/verify'
+    | '/portal/documents'
+    | '/portal/messages'
+    | '/portal/profile'
     | '/portal/security'
+    | '/portal/updates'
+    | '/u/$token'
+    | '/workspace/pipeline'
     | '/workspace/security'
+    | '/workspace/system'
+    | '/workspace/templates'
     | '/portal/'
     | '/workspace/'
+    | '/workspace/clients/$clientId'
+    | '/portal/deliverables/$deliverableId'
+    | '/portal/reports/$reportId'
+    | '/workspace/settings/audit'
     | '/workspace/settings/brand'
+    | '/workspace/settings/data'
+    | '/workspace/settings/security'
+    | '/workspace/settings/team'
+    | '/portal/deliverables/'
+    | '/portal/reports/'
+    | '/workspace/clients/'
+    | '/workspace/clients/$clientId/documents'
+    | '/workspace/clients/$clientId/funding'
+    | '/workspace/clients/$clientId/messages'
+    | '/workspace/clients/$clientId/people'
+    | '/workspace/clients/$clientId/pipeline'
+    | '/workspace/clients/$clientId/timeline'
+    | '/workspace/clients/$clientId/updates'
+    | '/workspace/clients/$clientId/'
+    | '/workspace/clients/$clientId/deliverables/$deliverableId'
+    | '/workspace/clients/$clientId/reports/$reportId'
+    | '/workspace/clients/$clientId/requests/new'
+    | '/workspace/clients/$clientId/deliverables/'
+    | '/workspace/clients/$clientId/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -175,6 +573,7 @@ export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   DevKitchenSinkRoute: typeof DevKitchenSinkRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
+  UTokenRoute: typeof UTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -235,6 +634,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalIndexRouteImport
       parentRoute: typeof PortalRouteRoute
     }
+    '/portal/documents': {
+      id: '/portal/documents'
+      path: '/documents'
+      fullPath: '/portal/documents'
+      preLoaderRoute: typeof PortalDocumentsRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/messages': {
+      id: '/portal/messages'
+      path: '/messages'
+      fullPath: '/portal/messages'
+      preLoaderRoute: typeof PortalMessagesRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/profile': {
+      id: '/portal/profile'
+      path: '/profile'
+      fullPath: '/portal/profile'
+      preLoaderRoute: typeof PortalProfileRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
     '/portal/security': {
       id: '/portal/security'
       path: '/security'
@@ -242,11 +662,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalSecurityRouteImport
       parentRoute: typeof PortalRouteRoute
     }
+    '/portal/updates': {
+      id: '/portal/updates'
+      path: '/updates'
+      fullPath: '/portal/updates'
+      preLoaderRoute: typeof PortalUpdatesRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/u/$token': {
+      id: '/u/$token'
+      path: '/u/$token'
+      fullPath: '/u/$token'
+      preLoaderRoute: typeof UTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workspace/': {
       id: '/workspace/'
       path: '/'
       fullPath: '/workspace/'
       preLoaderRoute: typeof WorkspaceIndexRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/pipeline': {
+      id: '/workspace/pipeline'
+      path: '/pipeline'
+      fullPath: '/workspace/pipeline'
+      preLoaderRoute: typeof WorkspacePipelineRouteImport
       parentRoute: typeof WorkspaceRouteRoute
     }
     '/workspace/security': {
@@ -256,40 +697,318 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceSecurityRouteImport
       parentRoute: typeof WorkspaceRouteRoute
     }
+    '/workspace/settings': {
+      id: '/workspace/settings'
+      path: '/settings'
+      fullPath: '/workspace/settings'
+      preLoaderRoute: typeof WorkspaceSettingsRouteRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/system': {
+      id: '/workspace/system'
+      path: '/system'
+      fullPath: '/workspace/system'
+      preLoaderRoute: typeof WorkspaceSystemRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/templates': {
+      id: '/workspace/templates'
+      path: '/templates'
+      fullPath: '/workspace/templates'
+      preLoaderRoute: typeof WorkspaceTemplatesRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/portal/deliverables/': {
+      id: '/portal/deliverables/'
+      path: '/deliverables'
+      fullPath: '/portal/deliverables/'
+      preLoaderRoute: typeof PortalDeliverablesIndexRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/deliverables/$deliverableId': {
+      id: '/portal/deliverables/$deliverableId'
+      path: '/deliverables/$deliverableId'
+      fullPath: '/portal/deliverables/$deliverableId'
+      preLoaderRoute: typeof PortalDeliverablesDeliverableIdRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/reports/': {
+      id: '/portal/reports/'
+      path: '/reports'
+      fullPath: '/portal/reports/'
+      preLoaderRoute: typeof PortalReportsIndexRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/reports/$reportId': {
+      id: '/portal/reports/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/portal/reports/$reportId'
+      preLoaderRoute: typeof PortalReportsReportIdRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/workspace/clients/': {
+      id: '/workspace/clients/'
+      path: '/clients'
+      fullPath: '/workspace/clients/'
+      preLoaderRoute: typeof WorkspaceClientsIndexRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/clients/$clientId': {
+      id: '/workspace/clients/$clientId'
+      path: '/clients/$clientId'
+      fullPath: '/workspace/clients/$clientId'
+      preLoaderRoute: typeof WorkspaceClientsClientIdRouteRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/settings/audit': {
+      id: '/workspace/settings/audit'
+      path: '/audit'
+      fullPath: '/workspace/settings/audit'
+      preLoaderRoute: typeof WorkspaceSettingsAuditRouteImport
+      parentRoute: typeof WorkspaceSettingsRouteRoute
+    }
     '/workspace/settings/brand': {
       id: '/workspace/settings/brand'
-      path: '/settings/brand'
+      path: '/brand'
       fullPath: '/workspace/settings/brand'
       preLoaderRoute: typeof WorkspaceSettingsBrandRouteImport
-      parentRoute: typeof WorkspaceRouteRoute
+      parentRoute: typeof WorkspaceSettingsRouteRoute
+    }
+    '/workspace/settings/data': {
+      id: '/workspace/settings/data'
+      path: '/data'
+      fullPath: '/workspace/settings/data'
+      preLoaderRoute: typeof WorkspaceSettingsDataRouteImport
+      parentRoute: typeof WorkspaceSettingsRouteRoute
+    }
+    '/workspace/settings/security': {
+      id: '/workspace/settings/security'
+      path: '/security'
+      fullPath: '/workspace/settings/security'
+      preLoaderRoute: typeof WorkspaceSettingsSecurityRouteImport
+      parentRoute: typeof WorkspaceSettingsRouteRoute
+    }
+    '/workspace/settings/team': {
+      id: '/workspace/settings/team'
+      path: '/team'
+      fullPath: '/workspace/settings/team'
+      preLoaderRoute: typeof WorkspaceSettingsTeamRouteImport
+      parentRoute: typeof WorkspaceSettingsRouteRoute
+    }
+    '/workspace/clients/$clientId/': {
+      id: '/workspace/clients/$clientId/'
+      path: '/'
+      fullPath: '/workspace/clients/$clientId/'
+      preLoaderRoute: typeof WorkspaceClientsClientIdIndexRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/documents': {
+      id: '/workspace/clients/$clientId/documents'
+      path: '/documents'
+      fullPath: '/workspace/clients/$clientId/documents'
+      preLoaderRoute: typeof WorkspaceClientsClientIdDocumentsRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/funding': {
+      id: '/workspace/clients/$clientId/funding'
+      path: '/funding'
+      fullPath: '/workspace/clients/$clientId/funding'
+      preLoaderRoute: typeof WorkspaceClientsClientIdFundingRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/messages': {
+      id: '/workspace/clients/$clientId/messages'
+      path: '/messages'
+      fullPath: '/workspace/clients/$clientId/messages'
+      preLoaderRoute: typeof WorkspaceClientsClientIdMessagesRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/people': {
+      id: '/workspace/clients/$clientId/people'
+      path: '/people'
+      fullPath: '/workspace/clients/$clientId/people'
+      preLoaderRoute: typeof WorkspaceClientsClientIdPeopleRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/pipeline': {
+      id: '/workspace/clients/$clientId/pipeline'
+      path: '/pipeline'
+      fullPath: '/workspace/clients/$clientId/pipeline'
+      preLoaderRoute: typeof WorkspaceClientsClientIdPipelineRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/timeline': {
+      id: '/workspace/clients/$clientId/timeline'
+      path: '/timeline'
+      fullPath: '/workspace/clients/$clientId/timeline'
+      preLoaderRoute: typeof WorkspaceClientsClientIdTimelineRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/updates': {
+      id: '/workspace/clients/$clientId/updates'
+      path: '/updates'
+      fullPath: '/workspace/clients/$clientId/updates'
+      preLoaderRoute: typeof WorkspaceClientsClientIdUpdatesRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/deliverables/': {
+      id: '/workspace/clients/$clientId/deliverables/'
+      path: '/deliverables'
+      fullPath: '/workspace/clients/$clientId/deliverables/'
+      preLoaderRoute: typeof WorkspaceClientsClientIdDeliverablesIndexRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/deliverables/$deliverableId': {
+      id: '/workspace/clients/$clientId/deliverables/$deliverableId'
+      path: '/deliverables/$deliverableId'
+      fullPath: '/workspace/clients/$clientId/deliverables/$deliverableId'
+      preLoaderRoute: typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/reports/': {
+      id: '/workspace/clients/$clientId/reports/'
+      path: '/reports'
+      fullPath: '/workspace/clients/$clientId/reports/'
+      preLoaderRoute: typeof WorkspaceClientsClientIdReportsIndexRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/reports/$reportId': {
+      id: '/workspace/clients/$clientId/reports/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/workspace/clients/$clientId/reports/$reportId'
+      preLoaderRoute: typeof WorkspaceClientsClientIdReportsReportIdRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/requests/new': {
+      id: '/workspace/clients/$clientId/requests/new'
+      path: '/requests/new'
+      fullPath: '/workspace/clients/$clientId/requests/new'
+      preLoaderRoute: typeof WorkspaceClientsClientIdRequestsNewRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
     }
   }
 }
 
 interface PortalRouteRouteChildren {
+  PortalDocumentsRoute: typeof PortalDocumentsRoute
+  PortalMessagesRoute: typeof PortalMessagesRoute
+  PortalProfileRoute: typeof PortalProfileRoute
   PortalSecurityRoute: typeof PortalSecurityRoute
+  PortalUpdatesRoute: typeof PortalUpdatesRoute
   PortalIndexRoute: typeof PortalIndexRoute
+  PortalDeliverablesDeliverableIdRoute: typeof PortalDeliverablesDeliverableIdRoute
+  PortalReportsReportIdRoute: typeof PortalReportsReportIdRoute
+  PortalDeliverablesIndexRoute: typeof PortalDeliverablesIndexRoute
+  PortalReportsIndexRoute: typeof PortalReportsIndexRoute
 }
 
 const PortalRouteRouteChildren: PortalRouteRouteChildren = {
+  PortalDocumentsRoute: PortalDocumentsRoute,
+  PortalMessagesRoute: PortalMessagesRoute,
+  PortalProfileRoute: PortalProfileRoute,
   PortalSecurityRoute: PortalSecurityRoute,
+  PortalUpdatesRoute: PortalUpdatesRoute,
   PortalIndexRoute: PortalIndexRoute,
+  PortalDeliverablesDeliverableIdRoute: PortalDeliverablesDeliverableIdRoute,
+  PortalReportsReportIdRoute: PortalReportsReportIdRoute,
+  PortalDeliverablesIndexRoute: PortalDeliverablesIndexRoute,
+  PortalReportsIndexRoute: PortalReportsIndexRoute,
 }
 
 const PortalRouteRouteWithChildren = PortalRouteRoute._addFileChildren(
   PortalRouteRouteChildren,
 )
 
-interface WorkspaceRouteRouteChildren {
-  WorkspaceSecurityRoute: typeof WorkspaceSecurityRoute
-  WorkspaceIndexRoute: typeof WorkspaceIndexRoute
+interface WorkspaceSettingsRouteRouteChildren {
+  WorkspaceSettingsAuditRoute: typeof WorkspaceSettingsAuditRoute
   WorkspaceSettingsBrandRoute: typeof WorkspaceSettingsBrandRoute
+  WorkspaceSettingsDataRoute: typeof WorkspaceSettingsDataRoute
+  WorkspaceSettingsSecurityRoute: typeof WorkspaceSettingsSecurityRoute
+  WorkspaceSettingsTeamRoute: typeof WorkspaceSettingsTeamRoute
+}
+
+const WorkspaceSettingsRouteRouteChildren: WorkspaceSettingsRouteRouteChildren =
+  {
+    WorkspaceSettingsAuditRoute: WorkspaceSettingsAuditRoute,
+    WorkspaceSettingsBrandRoute: WorkspaceSettingsBrandRoute,
+    WorkspaceSettingsDataRoute: WorkspaceSettingsDataRoute,
+    WorkspaceSettingsSecurityRoute: WorkspaceSettingsSecurityRoute,
+    WorkspaceSettingsTeamRoute: WorkspaceSettingsTeamRoute,
+  }
+
+const WorkspaceSettingsRouteRouteWithChildren =
+  WorkspaceSettingsRouteRoute._addFileChildren(
+    WorkspaceSettingsRouteRouteChildren,
+  )
+
+interface WorkspaceClientsClientIdRouteRouteChildren {
+  WorkspaceClientsClientIdDocumentsRoute: typeof WorkspaceClientsClientIdDocumentsRoute
+  WorkspaceClientsClientIdFundingRoute: typeof WorkspaceClientsClientIdFundingRoute
+  WorkspaceClientsClientIdMessagesRoute: typeof WorkspaceClientsClientIdMessagesRoute
+  WorkspaceClientsClientIdPeopleRoute: typeof WorkspaceClientsClientIdPeopleRoute
+  WorkspaceClientsClientIdPipelineRoute: typeof WorkspaceClientsClientIdPipelineRoute
+  WorkspaceClientsClientIdTimelineRoute: typeof WorkspaceClientsClientIdTimelineRoute
+  WorkspaceClientsClientIdUpdatesRoute: typeof WorkspaceClientsClientIdUpdatesRoute
+  WorkspaceClientsClientIdIndexRoute: typeof WorkspaceClientsClientIdIndexRoute
+  WorkspaceClientsClientIdDeliverablesDeliverableIdRoute: typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  WorkspaceClientsClientIdReportsReportIdRoute: typeof WorkspaceClientsClientIdReportsReportIdRoute
+  WorkspaceClientsClientIdRequestsNewRoute: typeof WorkspaceClientsClientIdRequestsNewRoute
+  WorkspaceClientsClientIdDeliverablesIndexRoute: typeof WorkspaceClientsClientIdDeliverablesIndexRoute
+  WorkspaceClientsClientIdReportsIndexRoute: typeof WorkspaceClientsClientIdReportsIndexRoute
+}
+
+const WorkspaceClientsClientIdRouteRouteChildren: WorkspaceClientsClientIdRouteRouteChildren =
+  {
+    WorkspaceClientsClientIdDocumentsRoute:
+      WorkspaceClientsClientIdDocumentsRoute,
+    WorkspaceClientsClientIdFundingRoute: WorkspaceClientsClientIdFundingRoute,
+    WorkspaceClientsClientIdMessagesRoute:
+      WorkspaceClientsClientIdMessagesRoute,
+    WorkspaceClientsClientIdPeopleRoute: WorkspaceClientsClientIdPeopleRoute,
+    WorkspaceClientsClientIdPipelineRoute:
+      WorkspaceClientsClientIdPipelineRoute,
+    WorkspaceClientsClientIdTimelineRoute:
+      WorkspaceClientsClientIdTimelineRoute,
+    WorkspaceClientsClientIdUpdatesRoute: WorkspaceClientsClientIdUpdatesRoute,
+    WorkspaceClientsClientIdIndexRoute: WorkspaceClientsClientIdIndexRoute,
+    WorkspaceClientsClientIdDeliverablesDeliverableIdRoute:
+      WorkspaceClientsClientIdDeliverablesDeliverableIdRoute,
+    WorkspaceClientsClientIdReportsReportIdRoute:
+      WorkspaceClientsClientIdReportsReportIdRoute,
+    WorkspaceClientsClientIdRequestsNewRoute:
+      WorkspaceClientsClientIdRequestsNewRoute,
+    WorkspaceClientsClientIdDeliverablesIndexRoute:
+      WorkspaceClientsClientIdDeliverablesIndexRoute,
+    WorkspaceClientsClientIdReportsIndexRoute:
+      WorkspaceClientsClientIdReportsIndexRoute,
+  }
+
+const WorkspaceClientsClientIdRouteRouteWithChildren =
+  WorkspaceClientsClientIdRouteRoute._addFileChildren(
+    WorkspaceClientsClientIdRouteRouteChildren,
+  )
+
+interface WorkspaceRouteRouteChildren {
+  WorkspaceSettingsRouteRoute: typeof WorkspaceSettingsRouteRouteWithChildren
+  WorkspacePipelineRoute: typeof WorkspacePipelineRoute
+  WorkspaceSecurityRoute: typeof WorkspaceSecurityRoute
+  WorkspaceSystemRoute: typeof WorkspaceSystemRoute
+  WorkspaceTemplatesRoute: typeof WorkspaceTemplatesRoute
+  WorkspaceIndexRoute: typeof WorkspaceIndexRoute
+  WorkspaceClientsClientIdRouteRoute: typeof WorkspaceClientsClientIdRouteRouteWithChildren
+  WorkspaceClientsIndexRoute: typeof WorkspaceClientsIndexRoute
 }
 
 const WorkspaceRouteRouteChildren: WorkspaceRouteRouteChildren = {
+  WorkspaceSettingsRouteRoute: WorkspaceSettingsRouteRouteWithChildren,
+  WorkspacePipelineRoute: WorkspacePipelineRoute,
   WorkspaceSecurityRoute: WorkspaceSecurityRoute,
+  WorkspaceSystemRoute: WorkspaceSystemRoute,
+  WorkspaceTemplatesRoute: WorkspaceTemplatesRoute,
   WorkspaceIndexRoute: WorkspaceIndexRoute,
-  WorkspaceSettingsBrandRoute: WorkspaceSettingsBrandRoute,
+  WorkspaceClientsClientIdRouteRoute:
+    WorkspaceClientsClientIdRouteRouteWithChildren,
+  WorkspaceClientsIndexRoute: WorkspaceClientsIndexRoute,
 }
 
 const WorkspaceRouteRouteWithChildren = WorkspaceRouteRoute._addFileChildren(
@@ -304,6 +1023,7 @@ const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   DevKitchenSinkRoute: DevKitchenSinkRoute,
   AuthVerifyRoute: AuthVerifyRoute,
+  UTokenRoute: UTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
