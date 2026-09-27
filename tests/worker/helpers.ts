@@ -73,6 +73,17 @@ export class Agent {
 export async function resetDb(): Promise<void> {
   memoryOutbox.length = 0;
   const tables = [
+    'message_reads',
+    'messages',
+    'approvals',
+    'deliverable_versions',
+    'deliverables',
+    'deliverable_templates',
+    'doc_request_items',
+    'doc_requests',
+    'file_parts',
+    'files',
+    'events',
     'webauthn_challenges',
     'user_devices',
     'passkeys',

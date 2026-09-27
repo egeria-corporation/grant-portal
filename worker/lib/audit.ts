@@ -25,6 +25,13 @@ export type AuditAction =
   | 'invite.accepted'
   | 'settings.updated'
   | 'client.created'
+  | 'client.updated'
+  | 'client.ein_updated'
+  | 'client.ein_revealed'
+  | 'client.assignments_changed'
+  | 'file.downloaded'
+  | 'file.deleted'
+  | 'deliverable.decided'
   | 'demo.loaded'
   | 'demo.deleted';
 

@@ -17,10 +17,26 @@ import { Route as WorkspaceRouteRouteImport } from './routes/workspace/route'
 import { Route as DevKitchenSinkRouteImport } from './routes/[_]dev/kitchen-sink'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
+import { Route as PortalDocumentsRouteImport } from './routes/portal/documents'
+import { Route as PortalMessagesRouteImport } from './routes/portal/messages'
+import { Route as PortalProfileRouteImport } from './routes/portal/profile'
 import { Route as PortalSecurityRouteImport } from './routes/portal/security'
 import { Route as WorkspaceIndexRouteImport } from './routes/workspace/index'
 import { Route as WorkspaceSecurityRouteImport } from './routes/workspace/security'
+import { Route as WorkspaceTemplatesRouteImport } from './routes/workspace/templates'
+import { Route as PortalDeliverablesIndexRouteImport } from './routes/portal/deliverables/index'
+import { Route as PortalDeliverablesDeliverableIdRouteImport } from './routes/portal/deliverables/$deliverableId'
+import { Route as WorkspaceClientsIndexRouteImport } from './routes/workspace/clients/index'
+import { Route as WorkspaceClientsClientIdRouteRouteImport } from './routes/workspace/clients/$clientId/route'
 import { Route as WorkspaceSettingsBrandRouteImport } from './routes/workspace/settings/brand'
+import { Route as WorkspaceClientsClientIdIndexRouteImport } from './routes/workspace/clients/$clientId/index'
+import { Route as WorkspaceClientsClientIdDocumentsRouteImport } from './routes/workspace/clients/$clientId/documents'
+import { Route as WorkspaceClientsClientIdMessagesRouteImport } from './routes/workspace/clients/$clientId/messages'
+import { Route as WorkspaceClientsClientIdPeopleRouteImport } from './routes/workspace/clients/$clientId/people'
+import { Route as WorkspaceClientsClientIdTimelineRouteImport } from './routes/workspace/clients/$clientId/timeline'
+import { Route as WorkspaceClientsClientIdDeliverablesIndexRouteImport } from './routes/workspace/clients/$clientId/deliverables/index'
+import { Route as WorkspaceClientsClientIdDeliverablesDeliverableIdRouteImport } from './routes/workspace/clients/$clientId/deliverables/$deliverableId'
+import { Route as WorkspaceClientsClientIdRequestsNewRouteImport } from './routes/workspace/clients/$clientId/requests/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -62,6 +78,21 @@ const PortalIndexRoute = PortalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PortalRouteRoute,
 } as any)
+const PortalDocumentsRoute = PortalDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalMessagesRoute = PortalMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalProfileRoute = PortalProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
 const PortalSecurityRoute = PortalSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -77,11 +108,86 @@ const WorkspaceSecurityRoute = WorkspaceSecurityRouteImport.update({
   path: '/security',
   getParentRoute: () => WorkspaceRouteRoute,
 } as any)
+const WorkspaceTemplatesRoute = WorkspaceTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const PortalDeliverablesIndexRoute = PortalDeliverablesIndexRouteImport.update({
+  id: '/deliverables/',
+  path: '/deliverables/',
+  getParentRoute: () => PortalRouteRoute,
+} as any)
+const PortalDeliverablesDeliverableIdRoute =
+  PortalDeliverablesDeliverableIdRouteImport.update({
+    id: '/deliverables/$deliverableId',
+    path: '/deliverables/$deliverableId',
+    getParentRoute: () => PortalRouteRoute,
+  } as any)
+const WorkspaceClientsIndexRoute = WorkspaceClientsIndexRouteImport.update({
+  id: '/clients/',
+  path: '/clients/',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
+const WorkspaceClientsClientIdRouteRoute =
+  WorkspaceClientsClientIdRouteRouteImport.update({
+    id: '/clients/$clientId',
+    path: '/clients/$clientId',
+    getParentRoute: () => WorkspaceRouteRoute,
+  } as any)
 const WorkspaceSettingsBrandRoute = WorkspaceSettingsBrandRouteImport.update({
   id: '/settings/brand',
   path: '/settings/brand',
   getParentRoute: () => WorkspaceRouteRoute,
 } as any)
+const WorkspaceClientsClientIdIndexRoute =
+  WorkspaceClientsClientIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdDocumentsRoute =
+  WorkspaceClientsClientIdDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdMessagesRoute =
+  WorkspaceClientsClientIdMessagesRouteImport.update({
+    id: '/messages',
+    path: '/messages',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdPeopleRoute =
+  WorkspaceClientsClientIdPeopleRouteImport.update({
+    id: '/people',
+    path: '/people',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdTimelineRoute =
+  WorkspaceClientsClientIdTimelineRouteImport.update({
+    id: '/timeline',
+    path: '/timeline',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdDeliverablesIndexRoute =
+  WorkspaceClientsClientIdDeliverablesIndexRouteImport.update({
+    id: '/deliverables/',
+    path: '/deliverables/',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdDeliverablesDeliverableIdRoute =
+  WorkspaceClientsClientIdDeliverablesDeliverableIdRouteImport.update({
+    id: '/deliverables/$deliverableId',
+    path: '/deliverables/$deliverableId',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
+const WorkspaceClientsClientIdRequestsNewRoute =
+  WorkspaceClientsClientIdRequestsNewRouteImport.update({
+    id: '/requests/new',
+    path: '/requests/new',
+    getParentRoute: () => WorkspaceClientsClientIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -91,11 +197,27 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/portal/documents': typeof PortalDocumentsRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/profile': typeof PortalProfileRoute
   '/portal/security': typeof PortalSecurityRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
+  '/workspace/templates': typeof WorkspaceTemplatesRoute
   '/portal/': typeof PortalIndexRoute
   '/workspace/': typeof WorkspaceIndexRoute
+  '/workspace/clients/$clientId': typeof WorkspaceClientsClientIdRouteRouteWithChildren
+  '/portal/deliverables/$deliverableId': typeof PortalDeliverablesDeliverableIdRoute
   '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
+  '/portal/deliverables/': typeof PortalDeliverablesIndexRoute
+  '/workspace/clients/': typeof WorkspaceClientsIndexRoute
+  '/workspace/clients/$clientId/documents': typeof WorkspaceClientsClientIdDocumentsRoute
+  '/workspace/clients/$clientId/messages': typeof WorkspaceClientsClientIdMessagesRoute
+  '/workspace/clients/$clientId/people': typeof WorkspaceClientsClientIdPeopleRoute
+  '/workspace/clients/$clientId/timeline': typeof WorkspaceClientsClientIdTimelineRoute
+  '/workspace/clients/$clientId/': typeof WorkspaceClientsClientIdIndexRoute
+  '/workspace/clients/$clientId/deliverables/$deliverableId': typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  '/workspace/clients/$clientId/requests/new': typeof WorkspaceClientsClientIdRequestsNewRoute
+  '/workspace/clients/$clientId/deliverables/': typeof WorkspaceClientsClientIdDeliverablesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -103,11 +225,26 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/portal/documents': typeof PortalDocumentsRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/profile': typeof PortalProfileRoute
   '/portal/security': typeof PortalSecurityRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
+  '/workspace/templates': typeof WorkspaceTemplatesRoute
   '/portal': typeof PortalIndexRoute
   '/workspace': typeof WorkspaceIndexRoute
+  '/portal/deliverables/$deliverableId': typeof PortalDeliverablesDeliverableIdRoute
   '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
+  '/portal/deliverables': typeof PortalDeliverablesIndexRoute
+  '/workspace/clients': typeof WorkspaceClientsIndexRoute
+  '/workspace/clients/$clientId/documents': typeof WorkspaceClientsClientIdDocumentsRoute
+  '/workspace/clients/$clientId/messages': typeof WorkspaceClientsClientIdMessagesRoute
+  '/workspace/clients/$clientId/people': typeof WorkspaceClientsClientIdPeopleRoute
+  '/workspace/clients/$clientId/timeline': typeof WorkspaceClientsClientIdTimelineRoute
+  '/workspace/clients/$clientId': typeof WorkspaceClientsClientIdIndexRoute
+  '/workspace/clients/$clientId/deliverables/$deliverableId': typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  '/workspace/clients/$clientId/requests/new': typeof WorkspaceClientsClientIdRequestsNewRoute
+  '/workspace/clients/$clientId/deliverables': typeof WorkspaceClientsClientIdDeliverablesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -118,11 +255,27 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/portal/documents': typeof PortalDocumentsRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/profile': typeof PortalProfileRoute
   '/portal/security': typeof PortalSecurityRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
+  '/workspace/templates': typeof WorkspaceTemplatesRoute
   '/portal/': typeof PortalIndexRoute
   '/workspace/': typeof WorkspaceIndexRoute
+  '/workspace/clients/$clientId': typeof WorkspaceClientsClientIdRouteRouteWithChildren
+  '/portal/deliverables/$deliverableId': typeof PortalDeliverablesDeliverableIdRoute
   '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
+  '/portal/deliverables/': typeof PortalDeliverablesIndexRoute
+  '/workspace/clients/': typeof WorkspaceClientsIndexRoute
+  '/workspace/clients/$clientId/documents': typeof WorkspaceClientsClientIdDocumentsRoute
+  '/workspace/clients/$clientId/messages': typeof WorkspaceClientsClientIdMessagesRoute
+  '/workspace/clients/$clientId/people': typeof WorkspaceClientsClientIdPeopleRoute
+  '/workspace/clients/$clientId/timeline': typeof WorkspaceClientsClientIdTimelineRoute
+  '/workspace/clients/$clientId/': typeof WorkspaceClientsClientIdIndexRoute
+  '/workspace/clients/$clientId/deliverables/$deliverableId': typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  '/workspace/clients/$clientId/requests/new': typeof WorkspaceClientsClientIdRequestsNewRoute
+  '/workspace/clients/$clientId/deliverables/': typeof WorkspaceClientsClientIdDeliverablesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,11 +287,27 @@ export interface FileRouteTypes {
     | '/signin'
     | '/_dev/kitchen-sink'
     | '/auth/verify'
+    | '/portal/documents'
+    | '/portal/messages'
+    | '/portal/profile'
     | '/portal/security'
     | '/workspace/security'
+    | '/workspace/templates'
     | '/portal/'
     | '/workspace/'
+    | '/workspace/clients/$clientId'
+    | '/portal/deliverables/$deliverableId'
     | '/workspace/settings/brand'
+    | '/portal/deliverables/'
+    | '/workspace/clients/'
+    | '/workspace/clients/$clientId/documents'
+    | '/workspace/clients/$clientId/messages'
+    | '/workspace/clients/$clientId/people'
+    | '/workspace/clients/$clientId/timeline'
+    | '/workspace/clients/$clientId/'
+    | '/workspace/clients/$clientId/deliverables/$deliverableId'
+    | '/workspace/clients/$clientId/requests/new'
+    | '/workspace/clients/$clientId/deliverables/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -146,11 +315,26 @@ export interface FileRouteTypes {
     | '/signin'
     | '/_dev/kitchen-sink'
     | '/auth/verify'
+    | '/portal/documents'
+    | '/portal/messages'
+    | '/portal/profile'
     | '/portal/security'
     | '/workspace/security'
+    | '/workspace/templates'
     | '/portal'
     | '/workspace'
+    | '/portal/deliverables/$deliverableId'
     | '/workspace/settings/brand'
+    | '/portal/deliverables'
+    | '/workspace/clients'
+    | '/workspace/clients/$clientId/documents'
+    | '/workspace/clients/$clientId/messages'
+    | '/workspace/clients/$clientId/people'
+    | '/workspace/clients/$clientId/timeline'
+    | '/workspace/clients/$clientId'
+    | '/workspace/clients/$clientId/deliverables/$deliverableId'
+    | '/workspace/clients/$clientId/requests/new'
+    | '/workspace/clients/$clientId/deliverables'
   id:
     | '__root__'
     | '/'
@@ -160,11 +344,27 @@ export interface FileRouteTypes {
     | '/signin'
     | '/_dev/kitchen-sink'
     | '/auth/verify'
+    | '/portal/documents'
+    | '/portal/messages'
+    | '/portal/profile'
     | '/portal/security'
     | '/workspace/security'
+    | '/workspace/templates'
     | '/portal/'
     | '/workspace/'
+    | '/workspace/clients/$clientId'
+    | '/portal/deliverables/$deliverableId'
     | '/workspace/settings/brand'
+    | '/portal/deliverables/'
+    | '/workspace/clients/'
+    | '/workspace/clients/$clientId/documents'
+    | '/workspace/clients/$clientId/messages'
+    | '/workspace/clients/$clientId/people'
+    | '/workspace/clients/$clientId/timeline'
+    | '/workspace/clients/$clientId/'
+    | '/workspace/clients/$clientId/deliverables/$deliverableId'
+    | '/workspace/clients/$clientId/requests/new'
+    | '/workspace/clients/$clientId/deliverables/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -235,6 +435,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalIndexRouteImport
       parentRoute: typeof PortalRouteRoute
     }
+    '/portal/documents': {
+      id: '/portal/documents'
+      path: '/documents'
+      fullPath: '/portal/documents'
+      preLoaderRoute: typeof PortalDocumentsRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/messages': {
+      id: '/portal/messages'
+      path: '/messages'
+      fullPath: '/portal/messages'
+      preLoaderRoute: typeof PortalMessagesRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/profile': {
+      id: '/portal/profile'
+      path: '/profile'
+      fullPath: '/portal/profile'
+      preLoaderRoute: typeof PortalProfileRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
     '/portal/security': {
       id: '/portal/security'
       path: '/security'
@@ -256,6 +477,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceSecurityRouteImport
       parentRoute: typeof WorkspaceRouteRoute
     }
+    '/workspace/templates': {
+      id: '/workspace/templates'
+      path: '/templates'
+      fullPath: '/workspace/templates'
+      preLoaderRoute: typeof WorkspaceTemplatesRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/portal/deliverables/': {
+      id: '/portal/deliverables/'
+      path: '/deliverables'
+      fullPath: '/portal/deliverables/'
+      preLoaderRoute: typeof PortalDeliverablesIndexRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/portal/deliverables/$deliverableId': {
+      id: '/portal/deliverables/$deliverableId'
+      path: '/deliverables/$deliverableId'
+      fullPath: '/portal/deliverables/$deliverableId'
+      preLoaderRoute: typeof PortalDeliverablesDeliverableIdRouteImport
+      parentRoute: typeof PortalRouteRoute
+    }
+    '/workspace/clients/': {
+      id: '/workspace/clients/'
+      path: '/clients'
+      fullPath: '/workspace/clients/'
+      preLoaderRoute: typeof WorkspaceClientsIndexRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
+    '/workspace/clients/$clientId': {
+      id: '/workspace/clients/$clientId'
+      path: '/clients/$clientId'
+      fullPath: '/workspace/clients/$clientId'
+      preLoaderRoute: typeof WorkspaceClientsClientIdRouteRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
     '/workspace/settings/brand': {
       id: '/workspace/settings/brand'
       path: '/settings/brand'
@@ -263,33 +519,140 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceSettingsBrandRouteImport
       parentRoute: typeof WorkspaceRouteRoute
     }
+    '/workspace/clients/$clientId/': {
+      id: '/workspace/clients/$clientId/'
+      path: '/'
+      fullPath: '/workspace/clients/$clientId/'
+      preLoaderRoute: typeof WorkspaceClientsClientIdIndexRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/documents': {
+      id: '/workspace/clients/$clientId/documents'
+      path: '/documents'
+      fullPath: '/workspace/clients/$clientId/documents'
+      preLoaderRoute: typeof WorkspaceClientsClientIdDocumentsRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/messages': {
+      id: '/workspace/clients/$clientId/messages'
+      path: '/messages'
+      fullPath: '/workspace/clients/$clientId/messages'
+      preLoaderRoute: typeof WorkspaceClientsClientIdMessagesRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/people': {
+      id: '/workspace/clients/$clientId/people'
+      path: '/people'
+      fullPath: '/workspace/clients/$clientId/people'
+      preLoaderRoute: typeof WorkspaceClientsClientIdPeopleRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/timeline': {
+      id: '/workspace/clients/$clientId/timeline'
+      path: '/timeline'
+      fullPath: '/workspace/clients/$clientId/timeline'
+      preLoaderRoute: typeof WorkspaceClientsClientIdTimelineRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/deliverables/': {
+      id: '/workspace/clients/$clientId/deliverables/'
+      path: '/deliverables'
+      fullPath: '/workspace/clients/$clientId/deliverables/'
+      preLoaderRoute: typeof WorkspaceClientsClientIdDeliverablesIndexRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/deliverables/$deliverableId': {
+      id: '/workspace/clients/$clientId/deliverables/$deliverableId'
+      path: '/deliverables/$deliverableId'
+      fullPath: '/workspace/clients/$clientId/deliverables/$deliverableId'
+      preLoaderRoute: typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
+    '/workspace/clients/$clientId/requests/new': {
+      id: '/workspace/clients/$clientId/requests/new'
+      path: '/requests/new'
+      fullPath: '/workspace/clients/$clientId/requests/new'
+      preLoaderRoute: typeof WorkspaceClientsClientIdRequestsNewRouteImport
+      parentRoute: typeof WorkspaceClientsClientIdRouteRoute
+    }
   }
 }
 
 interface PortalRouteRouteChildren {
+  PortalDocumentsRoute: typeof PortalDocumentsRoute
+  PortalMessagesRoute: typeof PortalMessagesRoute
+  PortalProfileRoute: typeof PortalProfileRoute
   PortalSecurityRoute: typeof PortalSecurityRoute
   PortalIndexRoute: typeof PortalIndexRoute
+  PortalDeliverablesDeliverableIdRoute: typeof PortalDeliverablesDeliverableIdRoute
+  PortalDeliverablesIndexRoute: typeof PortalDeliverablesIndexRoute
 }
 
 const PortalRouteRouteChildren: PortalRouteRouteChildren = {
+  PortalDocumentsRoute: PortalDocumentsRoute,
+  PortalMessagesRoute: PortalMessagesRoute,
+  PortalProfileRoute: PortalProfileRoute,
   PortalSecurityRoute: PortalSecurityRoute,
   PortalIndexRoute: PortalIndexRoute,
+  PortalDeliverablesDeliverableIdRoute: PortalDeliverablesDeliverableIdRoute,
+  PortalDeliverablesIndexRoute: PortalDeliverablesIndexRoute,
 }
 
 const PortalRouteRouteWithChildren = PortalRouteRoute._addFileChildren(
   PortalRouteRouteChildren,
 )
 
+interface WorkspaceClientsClientIdRouteRouteChildren {
+  WorkspaceClientsClientIdDocumentsRoute: typeof WorkspaceClientsClientIdDocumentsRoute
+  WorkspaceClientsClientIdMessagesRoute: typeof WorkspaceClientsClientIdMessagesRoute
+  WorkspaceClientsClientIdPeopleRoute: typeof WorkspaceClientsClientIdPeopleRoute
+  WorkspaceClientsClientIdTimelineRoute: typeof WorkspaceClientsClientIdTimelineRoute
+  WorkspaceClientsClientIdIndexRoute: typeof WorkspaceClientsClientIdIndexRoute
+  WorkspaceClientsClientIdDeliverablesDeliverableIdRoute: typeof WorkspaceClientsClientIdDeliverablesDeliverableIdRoute
+  WorkspaceClientsClientIdRequestsNewRoute: typeof WorkspaceClientsClientIdRequestsNewRoute
+  WorkspaceClientsClientIdDeliverablesIndexRoute: typeof WorkspaceClientsClientIdDeliverablesIndexRoute
+}
+
+const WorkspaceClientsClientIdRouteRouteChildren: WorkspaceClientsClientIdRouteRouteChildren =
+  {
+    WorkspaceClientsClientIdDocumentsRoute:
+      WorkspaceClientsClientIdDocumentsRoute,
+    WorkspaceClientsClientIdMessagesRoute:
+      WorkspaceClientsClientIdMessagesRoute,
+    WorkspaceClientsClientIdPeopleRoute: WorkspaceClientsClientIdPeopleRoute,
+    WorkspaceClientsClientIdTimelineRoute:
+      WorkspaceClientsClientIdTimelineRoute,
+    WorkspaceClientsClientIdIndexRoute: WorkspaceClientsClientIdIndexRoute,
+    WorkspaceClientsClientIdDeliverablesDeliverableIdRoute:
+      WorkspaceClientsClientIdDeliverablesDeliverableIdRoute,
+    WorkspaceClientsClientIdRequestsNewRoute:
+      WorkspaceClientsClientIdRequestsNewRoute,
+    WorkspaceClientsClientIdDeliverablesIndexRoute:
+      WorkspaceClientsClientIdDeliverablesIndexRoute,
+  }
+
+const WorkspaceClientsClientIdRouteRouteWithChildren =
+  WorkspaceClientsClientIdRouteRoute._addFileChildren(
+    WorkspaceClientsClientIdRouteRouteChildren,
+  )
+
 interface WorkspaceRouteRouteChildren {
   WorkspaceSecurityRoute: typeof WorkspaceSecurityRoute
+  WorkspaceTemplatesRoute: typeof WorkspaceTemplatesRoute
   WorkspaceIndexRoute: typeof WorkspaceIndexRoute
+  WorkspaceClientsClientIdRouteRoute: typeof WorkspaceClientsClientIdRouteRouteWithChildren
   WorkspaceSettingsBrandRoute: typeof WorkspaceSettingsBrandRoute
+  WorkspaceClientsIndexRoute: typeof WorkspaceClientsIndexRoute
 }
 
 const WorkspaceRouteRouteChildren: WorkspaceRouteRouteChildren = {
   WorkspaceSecurityRoute: WorkspaceSecurityRoute,
+  WorkspaceTemplatesRoute: WorkspaceTemplatesRoute,
   WorkspaceIndexRoute: WorkspaceIndexRoute,
+  WorkspaceClientsClientIdRouteRoute:
+    WorkspaceClientsClientIdRouteRouteWithChildren,
   WorkspaceSettingsBrandRoute: WorkspaceSettingsBrandRoute,
+  WorkspaceClientsIndexRoute: WorkspaceClientsIndexRoute,
 }
 
 const WorkspaceRouteRouteWithChildren = WorkspaceRouteRoute._addFileChildren(

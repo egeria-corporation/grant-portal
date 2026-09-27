@@ -188,6 +188,10 @@ export const clients = sqliteTable(
     fundingGoalsJson: text('funding_goals_json'),
     ownerUserId: text('owner_user_id').references(() => users.id),
     isDemo: integer('is_demo', { mode: 'boolean' }).notNull().default(false),
+    /** Client admins may edit org basics in the portal (spec §6.7 "when the consultant allows it"). */
+    clientCanEdit: integer('client_can_edit', { mode: 'boolean' }).notNull().default(false),
+    /** Last timeline event, for "last activity" in the client list. */
+    lastActivityAt: integer('last_activity_at'),
     createdAt: createdAt(),
     archivedAt: integer('archived_at'),
   },
@@ -332,6 +336,10 @@ export const files = sqliteTable(
       .default('pending'),
     sharedWithClient: integer('shared_with_client', { mode: 'boolean' }).notNull().default(true),
     uploadedBy: text('uploaded_by').references(() => users.id),
+    /** R2 multipart upload handle while `upload_status = 'pending'`; never sent to browsers. */
+    multipartUploadId: text('multipart_upload_id'),
+    completedAt: integer('completed_at'),
+    deletedBy: text('deleted_by'),
     createdAt: createdAt(),
     deletedAt: integer('deleted_at'),
   },
@@ -340,6 +348,21 @@ export const files = sqliteTable(
     index('files_client_created_idx').on(t.clientId, t.createdAt),
     index('files_expires_idx').on(t.expiresAt),
   ],
+);
+
+/** Parts of an in-progress multipart upload, so an interrupted upload can resume (spec §6.3). */
+export const fileParts = sqliteTable(
+  'file_parts',
+  {
+    fileId: text('file_id')
+      .notNull()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    partNumber: integer('part_number').notNull(),
+    etag: text('etag').notNull(),
+    size: integer('size').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.fileId, t.partNumber] })],
 );
 
 export const deliverables = sqliteTable(
@@ -358,10 +381,25 @@ export const deliverables = sqliteTable(
       .notNull()
       .default('not_started'),
     templateId: text('template_id'),
+    description: text('description'),
+    updatedAt: integer('updated_at'),
     createdAt: createdAt(),
   },
   (t) => [index('deliverables_client_due_idx').on(t.clientId, t.dueAt)],
 );
+
+/** Reusable deliverable sets with due dates relative to an anchor date (spec §5.5). */
+export const deliverableTemplates = sqliteTable('deliverable_templates', {
+  id: id(),
+  orgId: orgId(),
+  name: text('name').notNull(),
+  description: text('description'),
+  /** `[{ title, side, offsetDays }]`; offsetDays is relative to the anchor (negative = before). */
+  itemsJson: text('items_json').notNull(),
+  createdBy: text('created_by'),
+  createdAt: createdAt(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
 export const deliverableVersions = sqliteTable(
   'deliverable_versions',
@@ -429,6 +467,8 @@ export const docRequestItems = sqliteTable(
     fileId: text('file_id').references(() => files.id),
     fulfilledAt: integer('fulfilled_at'),
     position: integer('position').notNull().default(0),
+    /** Optional hint shown to the client ("the signed PDF, not the draft"). */
+    hint: text('hint'),
   },
   (t) => [index('doc_request_items_request_idx').on(t.docRequestId)],
 );
@@ -508,6 +548,22 @@ export const messages = sqliteTable(
     readByJson: text('read_by_json'),
   },
   (t) => [index('messages_client_created_idx').on(t.clientId, t.createdAt)],
+);
+
+/** How far each person has read each thread (`thread_ref` '' = the client's main thread). */
+export const messageReads = sqliteTable(
+  'message_reads',
+  {
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    threadRef: text('thread_ref').notNull().default(''),
+    lastReadAt: integer('last_read_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.clientId, t.userId, t.threadRef] })],
 );
 
 /** Client timeline (spec §5.2). */

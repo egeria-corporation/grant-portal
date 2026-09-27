@@ -7,6 +7,7 @@
 import { DENSITIES, HEADINGS, NEUTRALS, RADII } from '@shared/theme/tokens';
 import { z } from 'zod';
 import { DEFAULT_ORG_ID } from '../db/schema';
+import { FILE_KINDS, MAX_MAX_BYTES } from '../files/policy';
 import type { AppEnv } from '../env';
 import { decryptField, encryptField } from './crypto';
 import { dataKeys, getSecret } from './secrets';
@@ -69,6 +70,11 @@ export const SETTINGS = {
   opengrants: z.object({ apiKeyEnc: z.string(), savedAt: z.number() }),
   cloudflare: z.object({ apiTokenEnc: z.string(), savedAt: z.number() }),
   domain: z.object({ hostname: z.string().max(253), status: z.enum(['pending', 'active', 'manual']), updatedAt: z.number() }),
+  /** Vault upload rules (spec §6.3, §7.4). Absent = defaults in worker/files/policy.ts. */
+  files: z.object({
+    maxBytes: z.number().int().min(1024 * 1024).max(MAX_MAX_BYTES),
+    kinds: z.array(z.enum(FILE_KINDS)).min(1),
+  }),
 } as const;
 
 export type SettingKey = keyof typeof SETTINGS;

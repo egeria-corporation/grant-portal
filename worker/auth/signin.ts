@@ -9,6 +9,7 @@ import { sendEmail } from '../email';
 import { newDeviceEmail } from '../email/templates/auth';
 import type { AppBindings, AppEnv, AuthUser, Role } from '../env';
 import { audit } from '../lib/audit';
+import { eventStmts } from '../lib/events';
 import { randomToken, sha256Hex } from '../lib/crypto';
 import { HttpError, publicOrigin, uaLabel } from '../lib/http';
 import { newId } from '../lib/ids';
@@ -151,6 +152,12 @@ export async function startSession(c: C, user: AuthUser, method: 'link' | 'code'
   await createSession(c, user, { stepUp: true });
   await noteDevice(c, user);
   await audit(c, { actor: user.id, action: method === 'passkey' ? 'passkey.signin' : 'auth.signin', target: user.id, meta: { method } });
+  if (user.kind === 'client') {
+    // Sign-ins appear on each client's timeline (spec §5.2).
+    const memberships = await c.env.DB.prepare('SELECT client_id FROM client_members WHERE user_id = ?').bind(user.id).all<{ client_id: string }>();
+    const stmts = memberships.results.flatMap((m) => eventStmts(c.env, { clientId: m.client_id, actor: user.id, type: 'member.signed_in', payload: { method } }));
+    if (stmts.length) await c.env.DB.batch(stmts);
+  }
   return { redirect: await homeFor(c.env, user) };
 }
 

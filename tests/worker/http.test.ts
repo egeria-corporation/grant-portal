@@ -62,7 +62,8 @@ describe('routing', () => {
   it('answers unknown API paths with JSON 404, not the SPA', async () => {
     for (const path of ['/api/nope', '/f/nope', '/brand/nope', '/webhooks/nope']) {
       const res = await call(path);
-      expect(res.status, path).toBe(404);
+      // Downloads ask who you are before saying whether a file exists.
+      expect(res.status, path).toBe(path.startsWith('/f/') ? 401 : 404);
       expect(res.headers.get('Content-Type'), path).toContain('application/json');
     }
   });

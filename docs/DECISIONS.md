@@ -222,3 +222,75 @@ Spec §8.2 asks for an optional, off-by-default "Powered by" footer. The no-main
 ### New dependencies (M2)
 - `@fontsource-variable/geist`, `-geist-mono`, `-source-serif-4`, `-newsreader`: self-hosted fonts (OFL-1.1).
 - `@axe-core/playwright` (dev only): contrast checks in E2E, and the M6 axe pass.
+
+## M3
+
+### D-044 One client-scoped API for both surfaces
+Workspace and portal call the same routes under `/api/clients/:clientId/…`. `requireClientAccess` decides who gets in and records how: `staff`, `admin` or `member`. Handlers then apply row-level rules on top: client users never see internal files, clients decide on consultant deliverables and staff on client ones, and clients delete only their own recent uploads. Every lookup of a row inside a client also filters on `client_id = :clientId`, so an ID from another client is a 404 even for someone who can reach both.
+
+`tests/worker/authz.test.ts` creates real fixtures in two clients, calls every route as every kind of actor, and then calls every nested route with client A's ID and client B's row. It also sends another client's file and deliverable IDs in request bodies (attachments, versions, request items, thread references).
+
+### D-045 Uploads go through the Worker, resumably
+Spec §6.3 asks for resumable uploads via R2 multipart, and §7.4 rules out public bucket access. Without R2 API credentials there are no presigned URLs, so bytes pass through the Worker:
+- Files up to 8 MiB go as one `PUT`.
+- Larger files go as 8 MiB parts of an R2 multipart upload. That stays under Workers' request-body limit and over R2's 5 MiB minimum part size.
+- The server records each part in `file_parts`, so a client can ask which parts landed and send only the rest.
+
+Only the uploader can continue or cancel an upload. Uploads abandoned for 7 days are aborted by the daily cron.
+
+### D-046 What may be uploaded
+The extension picks a family: PDF, documents, spreadsheets, presentations, images, or archives (archives are off by default). The first bytes must match that family's signature (`%PDF-`, PNG, JPEG, GIF, WebP, HEIC, ZIP/OOXML, OLE, RTF), or be clean UTF-8 text with no markup-looking start for `.txt`, `.md` and `.csv`. The stored `Content-Type` comes from the server's table, never from the browser. HTML, SVG, scripts and executables are never accepted into a vault.
+
+The size limit defaults to 100 MB (spec §7.4). Both limits live in the `files` setting (Owner UI in M6).
+
+### D-047 SHA-256 is computed server-side
+Single-request uploads are hashed as they're stored. Multipart uploads can't be hashed incrementally across requests with WebCrypto, so completing one queues a `file.finalize` job. The job streams the object through `crypto.DigestStream` and stores the hash. Downloads send it back in a `Digest` header.
+
+### D-048 Downloads
+`/f/:fileId` is the only way file bytes leave R2. It checks access to the file's client, hides internal files from client users, and refuses quarantined files. Every download is written to the audit log (spec §7.5).
+
+Files are served as attachments by default, with a strict type, `nosniff` and `no-store`. `?inline=1` previews PDFs and images only:
+- Images get a sandboxing CSP.
+- Browsers refuse to render PDFs in a sandboxed document, so PDFs get `default-src 'none'` without `sandbox`. The browser's PDF viewer runs isolated from the page origin.
+
+Filenames use the RFC 6266 `filename*` form.
+
+### D-049 Malware scanning is a service-binding hook
+No scanner ships with v1 (spec §7.4). A deployment can bind a Worker service named `SCANNER`. With it bound, new uploads start as `pending`, the finalize job posts the bytes to it, and downloads stay blocked (`409 scan_pending`) until the result is `clean`. Without it, `scan_status` stays `none`. A service binding needs no secret, so the three-secret limit (D-002) holds.
+
+### D-050 Deleting files
+A delete removes the R2 object and marks the row deleted. The row stays for the timeline and audit trail; hard deletion of a whole client is M6. Rules:
+- Client users can delete their own uploads within 24 hours (spec §7.3).
+- A file that is part of a deliverable's version history can't be deleted, because every version is kept (spec §5.5).
+- Deleting a file that satisfied a request item reopens that item.
+
+Staff can mark a file internal (`shared_with_client = 0`). Client uploads are always shared.
+
+### D-051 Document requests
+Each checklist item holds one file. Uploading again replaces it, and the old file stays in the vault. Staff can send an item back ("Ask again"). A request completes when every required item has a file, and reopens when one is removed.
+
+The reminder cadence is stored per request, defaulting to the spec's example (3 days before, on the due date, 2 days after; open question §16.7). The M4 scheduler sends the reminders.
+
+### D-052 Deliverable versions and approvals
+The side that owes a deliverable adds versions; staff can always add for the firm. The other side approves, or asks for changes with a required comment. Rules:
+- Only the latest version can be decided.
+- Each version gets one decision, enforced atomically with a conditional insert.
+- A version is a vault file the client can see, or an `https` link.
+
+Adding a version moves the deliverable to "In review". Approving moves it to "Approved", and a change request moves it back to "In progress". Staff can set any status by hand.
+
+Templates store `{ title, side, offsetDays }` items. Applying one creates the deliverables with due dates relative to an anchor date, usually the grant deadline. No template ships with the app, so there's no invented content.
+
+### D-053 Messages
+One thread per client, plus a thread per deliverable (its discussion). Bodies are plain text, stored as typed and rendered as text nodes, never HTML. Attachments are vault files the author can see; staff attachments must be shared with the client. Read positions live in `message_reads`. Message email notifications arrive with the email system in M4.
+
+### D-054 Client profile and EIN
+The EIN is encrypted with AES-GCM (the data key, AAD bound to the client), and only the last four digits are shown. Revealing it needs a step-up within 30 minutes and is written to both the audit log and the timeline.
+
+Client users see their org basics, not internal fields (focus tags, funding goals, EIN). Client admins can edit org basics only when staff turn on "let the client update these". Client admins can invite colleagues by email; copy-link invites stay staff-only (D-027).
+
+### D-055 Timeline contents
+Events hold IDs and short labels: a filename, a deliverable title, a version number. They never hold message text or file contents. Client sign-ins are recorded on each of the user's clients. Writing an event also updates the client's `last_activity_at` for the client list.
+
+### D-056 E2E runs on one worker
+The specs share one local portal, and `wizard.spec.ts` must claim it before `workflow.spec.ts` signs in as its Owner. So Playwright runs with `workers: 1`, and files run in name order.

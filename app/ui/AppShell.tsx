@@ -8,7 +8,7 @@ import { useBrand } from '@/lib/session';
 import { FirmLogo, ThemeToggle } from './brand';
 import { Button } from './controls';
 
-export function AppShell({ nav, children }: { nav: { to: string; label: string }[]; children: ReactNode }) {
+export function AppShell({ nav, children, aside }: { nav: { to: string; label: string; exact?: boolean }[]; children: ReactNode; aside?: ReactNode }) {
   useBrand();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -23,26 +23,27 @@ export function AppShell({ nav, children }: { nav: { to: string; label: string }
   return (
     <div className="min-h-dvh bg-bg">
       <header className="border-b border-border bg-raised">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <FirmLogo height={28} />
-          <nav className="ml-4 flex gap-1" aria-label="Main">
+          <nav className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1 sm:ml-2" aria-label="Main">
             {nav.map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
-                activeOptions={{ exact: true }}
-                className="rounded-md px-2.5 py-1.5 text-[13.5px] text-text2 hover:bg-hover hover:text-text [&.active]:bg-active [&.active]:text-text"
+                activeOptions={{ exact: n.exact ?? false }}
+                className="shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13.5px] text-text2 hover:bg-hover hover:text-text [&.active]:bg-active [&.active]:text-text"
               >
                 {n.label}
               </Link>
             ))}
           </nav>
-          <div className="ml-auto hidden sm:block">
+          {aside}
+          <div className="hidden sm:block">
             <ThemeToggle />
           </div>
-          <Button variant="ghost" size="sm" loading={signOut.isPending} onClick={() => signOut.mutate()}>
+          <Button variant="ghost" size="sm" loading={signOut.isPending} onClick={() => signOut.mutate()} aria-label="Sign out">
             <LogOut aria-hidden className="size-3.5" />
-            Sign out
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
       </header>

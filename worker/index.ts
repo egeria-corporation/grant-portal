@@ -4,7 +4,7 @@
  *   /healthz        liveness/readiness
  *   /api/*          JSON API (authz middleware → handlers)
  *   /auth/*         POST: magic links, codes, passkeys, sign-out; GET: SPA pages
- *   /f/*            authorised file downloads                  (M3)
+ *   /f/*            authorised file downloads
  *   /brand/*        theme.css, icon, manifest, OG image, uploaded brand files
  *   /webhooks/*     Resend delivery events                     (M4)
  *   everything else SPA HTML with a per-request CSP nonce, or a static file
@@ -18,6 +18,9 @@ import { settingsApi } from './api/settings';
 import { setup } from './api/setup';
 import { system } from './api/system';
 import { team } from './api/team';
+import { templates } from './api/deliverables';
+import { today } from './api/today';
+import { downloads } from './files/download';
 import { csrf } from './auth/csrf';
 import { auth } from './auth/routes';
 import { brand } from './brand/routes';
@@ -60,6 +63,7 @@ app.use('*', async (c, next) => {
 app.use('*', csrf);
 app.use('/api/*', loadSession);
 app.use('/auth/*', loadSession);
+app.use('/f/*', loadSession);
 
 app.route('/healthz', health);
 app.route('/brand', brand);
@@ -76,6 +80,9 @@ app.route('/api/clients', clients);
 app.route('/api/demo', demo);
 app.route('/api/portal', portal);
 app.route('/api/system', system);
+app.route('/api/today', today);
+app.route('/api/templates', templates);
+app.route('/f', downloads);
 
 const notFound = (c: { json: (body: unknown, status: 404) => Response }) => c.json({ error: 'not_found' }, 404);
 for (const prefix of ['/api/*', '/f/*', '/brand/*', '/webhooks/*']) app.all(prefix, notFound);

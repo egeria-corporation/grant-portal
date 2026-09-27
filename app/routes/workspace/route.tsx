@@ -30,7 +30,9 @@ function Workspace() {
   }
 
   const nav = [
-    { to: '/workspace', label: 'Home' },
+    { to: '/workspace', label: 'Today', exact: true },
+    { to: '/workspace/clients', label: 'Clients' },
+    { to: '/workspace/templates', label: 'Templates' },
     ...(user.role === 'owner' ? [{ to: '/workspace/settings/brand', label: 'Brand' }] : []),
     { to: '/workspace/security', label: 'Security' },
   ];

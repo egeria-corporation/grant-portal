@@ -48,6 +48,32 @@ The first person to finish step 1 of the wizard becomes the Owner, and the step 
 - Every SVG served also carries a sandboxing Content-Security-Policy, so even a missed payload couldn't run.
 - Brand files live in R2 under random keys and are public by design: the sign-in page, emails and link previews need them.
 
+## Client files
+
+- **Stored privately.** Files live in R2 under random keys (`clients/{client}/{uuid}`). The filename is kept in the database only. There's no public bucket access; every download goes through the portal, which checks the viewer can reach that client.
+- **Checked on the way in.** Only documents, spreadsheets, PDFs and images are accepted by default (up to 100 MB). The first bytes must match the file's extension, and the stored type comes from the portal's own table, not the browser. HTML, SVG, scripts and programs are never accepted.
+- **Served safely.** Files download as attachments with a strict type and `nosniff`. Only PDFs and images can be previewed in the browser, under a Content-Security-Policy that lets nothing else load or run. Every download is recorded in the audit log.
+- **Checksums.** A SHA-256 is computed by the server for every file and sent back with downloads.
+- **Internal files.** Staff can keep a file internal; client users can't list, attach or download it.
+- **Deleting.** Client users can remove their own uploads for 24 hours; staff can remove any. Deleting removes the stored bytes; a record stays on the timeline. Files that are part of a deliverable's version history can't be deleted.
+
+### Scanning uploads
+
+No malware scanner ships with the portal. To add one, deploy a scanning Worker (for example one wrapping a commercial scanning API) and bind it to the portal as a service named `SCANNER` in `wrangler.jsonc`:
+
+```jsonc
+"services": [{ "binding": "SCANNER", "service": "your-scanner-worker" }]
+```
+
+With a scanner bound, every new upload shows "Checking…" and can't be downloaded until the scan comes back clean. The portal POSTs the file's bytes to `https://scanner/scan` (headers `X-File-Id`, `X-File-Name`, `Content-Type`) and expects `{"status":"clean"}` or `{"status":"infected"}`. Anything else counts as an error, and the file stays quarantined; the job retries.
+
+## Client data
+
+- **EIN.** Encrypted with AES-256-GCM using the data key; only the last four digits are shown. Revealing the full number needs a recent passkey or sign-in and is recorded in the audit log and on the client's timeline.
+- **What clients see.** Client users see their organization's basic details, requests, shared files, deliverables and messages. They don't see internal notes such as focus tags, funding goals, or the EIN.
+- **Messages** are plain text. They're never rendered as HTML.
+- **Timeline.** Each client has an activity log (uploads, requests, versions, approvals, sign-ins, messages sent). It records who did what and when, not message text or file contents.
+
 ## Secrets and sensitive data
 
 - `SESSION_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first boot if you leave them blank. They're kept in KV, and the Owner sees a banner recommending you move them to Worker secrets.
@@ -65,10 +91,12 @@ The first person to finish step 1 of the wizard becomes the Owner, and the step 
   They then sign in with a magic link and add a new passkey. This works for the Owner too.
 - **Moved to a custom domain.** Passkeys belong to the address they were created on. Add a new one after switching domains.
 
-## Known limitations (M1)
+## Known limitations
 
 - **Copy-link invites** (used before your sending domain is verified) sign in whoever opens them. Share them over a channel you trust. They are single-use and expire after 72 hours. They're only issued for people who don't have an account yet; existing users are added directly or emailed.
 - **Rate limits are best-effort.** KV has no atomic counter, so a burst of simultaneous requests can slightly exceed a limit. The hard limits (single-use tokens, 5 code attempts, 10 setup-code attempts) are enforced atomically in D1.
 - **Turnstile is off** until you add keys (Security page). Rate limits apply either way.
 - **Restricting staff sign-in to an email domain**, the IP allowlist and session-length settings arrive with Settings → Security (M6).
 - **Protect your GitHub account with 2FA.** Pushes to `main` of your fork deploy automatically.
+- **No malware scanning by default.** See "Scanning uploads" above.
+- **Uploads resume within a session.** An interrupted upload picks up where it stopped while the page stays open. After a reload, the file is uploaded again; the unfinished upload is cleaned up after 7 days.

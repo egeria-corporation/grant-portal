@@ -17,7 +17,16 @@ export interface Secrets {
   TURNSTILE_SITE_KEY?: string;
 }
 
-export type AppEnv = Env & Secrets;
+/**
+ * Optional bindings a deployment can add in wrangler.jsonc. None are required;
+ * the Deploy button works without them.
+ */
+export interface OptionalBindings {
+  /** Malware scanner service (docs/security.md "Scanning uploads"). */
+  SCANNER?: Fetcher;
+}
+
+export type AppEnv = Env & Secrets & OptionalBindings;
 
 export type Role = 'owner' | 'consultant' | 'client_admin' | 'client_member';
 
@@ -53,6 +62,8 @@ export interface AppBindings {
     requestId: string;
     /** Set by the session middleware; null when signed out. */
     auth: AuthState | null;
+    /** Set by requireClientAccess: how the caller reaches the route's client. */
+    clientAccess?: 'staff' | 'admin' | 'member';
   };
 }
 

@@ -67,13 +67,18 @@ export const passkeysApi = new Hono<AppBindings>()
     return c.json({ ok: true });
   });
 
-/** Client users: which client orgs they belong to (portal home fills out in M3). */
+/** Client users: the client orgs they belong to, with what's waiting in each. */
 export const portal = new Hono<AppBindings>().get('/home', requireClientUser, async (c) => {
+  const userId = authOf(c).user.id;
   const rows = await c.env.DB.prepare(
-    `SELECT c.id, c.name, m.role FROM client_members m JOIN clients c ON c.id = m.client_id
+    `SELECT c.id, c.name, m.role,
+       (SELECT COUNT(*) FROM doc_request_items i JOIN doc_requests r ON r.id = i.doc_request_id
+          WHERE r.client_id = c.id AND r.status = 'open' AND i.fulfilled_at IS NULL) AS openItems,
+       (SELECT COUNT(*) FROM deliverables d WHERE d.client_id = c.id AND d.status = 'in_review' AND d.side = 'consultant') AS awaitingYou
+       FROM client_members m JOIN clients c ON c.id = m.client_id
       WHERE m.user_id = ? AND c.archived_at IS NULL ORDER BY c.name`,
   )
-    .bind(authOf(c).user.id)
+    .bind(userId)
     .all();
-  return c.json({ clients: rows.results });
+  return c.json({ clients: rows.results }, 200, { 'Cache-Control': 'no-store' });
 });

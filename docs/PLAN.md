@@ -51,16 +51,16 @@ Each milestone ends with: typecheck + lint + unit + relevant E2E green → conve
 - [x] Automated contrast tests: unit (tokens, every preset combination) + axe on every component in E2E; branding grep still green; literal-color guard
 
 ## M3 — Clients, documents, deliverables, messages
-- [ ] Clients CRUD, profile, EIN AES-GCM (masked, reveal audited), statuses, staff assignments
-- [ ] Client members + invites; timeline (`events`)
-- [ ] Document requests + checklist + reminder policy
-- [ ] Vault: folders, tags, expiry; R2 multipart resumable via Worker; size limit, content-type allowlist, SHA-256, scanner hook + `scan_status`
-- [ ] Deliverables: versions, approvals, templates with relative due dates
-- [ ] Messages with vault attachments
-- [ ] Workspace screens: Today, Clients, Client detail tabs, Deliverable detail, Doc request composer
-- [ ] Portal screens (mobile-first): Home, Documents, Deliverable review, Messages, Profile & notifications
-- [ ] Generated IDOR test over every route
-- [ ] Playwright: client uploads 3 docs + approves a deliverable
+- [x] Clients CRUD, profile, EIN AES-GCM (masked, reveal audited behind step-up), statuses, staff assignments (D-054)
+- [x] Client members + invites (client admins by email); timeline (`events`) (D-055)
+- [x] Document requests + checklist + reminder policy (stored; sending is M4) (D-051)
+- [x] Vault: folders, tags, expiry; R2 multipart resumable via Worker; size limit, content-type allowlist, SHA-256, scanner hook + `scan_status` (D-045–D-050)
+- [x] Deliverables: versions, approvals, templates with relative due dates (D-052)
+- [x] Messages with vault attachments; per-deliverable threads (D-053)
+- [x] Workspace screens: Today, Clients, Client detail tabs, Deliverable detail, Doc request composer, Templates
+- [x] Portal screens (mobile-first): Home, Documents, Deliverable review, Messages, Profile & team (notification preferences arrive with digests in M4)
+- [x] Generated IDOR test over every route, with real cross-client fixtures and body references (D-044)
+- [x] Playwright: client uploads 3 docs + approves a deliverable (`tests/e2e/workflow.spec.ts`)
 
 ## M4 — Email, schedules, reminders
 - [ ] `EmailProvider` + Resend adapter; signed webhooks → suppression + timeline

@@ -4,7 +4,7 @@
  * authz test in tests/worker/authz.test.ts.
  */
 import type { Context, MiddlewareHandler } from 'hono';
-import type { AppBindings, AuthState, Role } from '../env';
+import type { AppBindings, AppEnv, AuthState, Role } from '../env';
 import { HttpError } from '../lib/http';
 
 type C = Context<AppBindings>;
@@ -71,11 +71,40 @@ export function requireStepUp(maxAgeMs = 30 * 60_000): MiddlewareHandler<AppBind
   };
 }
 
+/** Which way the caller reaches a client: as staff, or as one of its client users. */
+export type ClientAccess = 'staff' | 'admin' | 'member';
+
+const CLIENT_ID_RE = /^cli_[0-9A-HJKMNP-TV-Z]{26}$/;
+
 /**
- * Scopes a route to one client (`:clientId` param). Owner: any client.
- * Consultant: assigned clients, or all when the Owner granted it. Client
- * users: clients they are a member of, optionally only as admin. Anything
- * else gets 404, so client IDs can't be probed.
+ * How `auth` may reach `clientId`, or null. Owner: any client. Consultant:
+ * assigned clients, or all when the Owner granted it. Client users: clients
+ * they are a member of. Used by requireClientAccess and by routes that find
+ * the client through another row (file downloads).
+ */
+export async function clientAccessFor(env: AppEnv, auth: AuthState, clientId: string): Promise<ClientAccess | null> {
+  if (!CLIENT_ID_RE.test(clientId)) return null;
+  if (auth.user.kind === 'staff') {
+    if (auth.needsPasskey) return null;
+    const row =
+      auth.user.role === 'owner' || auth.user.allClients
+        ? await env.DB.prepare('SELECT 1 AS ok FROM clients WHERE id = ?').bind(clientId).first()
+        : await env.DB.prepare('SELECT 1 AS ok FROM staff_assignments WHERE client_id = ? AND user_id = ?')
+            .bind(clientId, auth.user.id)
+            .first();
+    return row ? 'staff' : null;
+  }
+  const member = await env.DB.prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+    .bind(clientId, auth.user.id)
+    .first<{ role: 'admin' | 'member' }>();
+  return member?.role ?? null;
+}
+
+/**
+ * Scopes a route to one client (`:clientId` param) and records how the caller
+ * reaches it (`c.get('clientAccess')`). `clientRoles` limits which client
+ * users may pass: 'none' makes the route staff-only. Anything not allowed gets
+ * 404, so client IDs can't be probed.
  */
 export function requireClientAccess(opts: { param?: string; clientRoles?: ('admin' | 'member')[] | 'none' } = {}): MiddlewareHandler<AppBindings> {
   const param = opts.param ?? 'clientId';
@@ -83,29 +112,25 @@ export function requireClientAccess(opts: { param?: string; clientRoles?: ('admi
     const auth = c.get('auth');
     if (!auth) return denyUnauthenticated(c);
     const clientId = c.req.param(param);
-    if (!clientId || !/^cli_[0-9A-HJKMNP-TV-Z]{26}$/.test(clientId)) return c.json({ error: 'not_found' }, 404);
+    if (!clientId || !CLIENT_ID_RE.test(clientId)) return c.json({ error: 'not_found' }, 404);
+    if (auth.user.kind === 'staff' && auth.needsPasskey) return c.json({ error: 'passkey_enrollment_required' }, 403);
 
-    let allowed = false;
-    if (auth.user.kind === 'staff') {
-      if (auth.needsPasskey) return c.json({ error: 'passkey_enrollment_required' }, 403);
-      if (auth.user.role === 'owner' || auth.user.allClients) {
-        allowed = Boolean(await c.env.DB.prepare('SELECT 1 AS ok FROM clients WHERE id = ?').bind(clientId).first());
-      } else {
-        allowed = Boolean(
-          await c.env.DB.prepare('SELECT 1 AS ok FROM staff_assignments WHERE client_id = ? AND user_id = ?')
-            .bind(clientId, auth.user.id)
-            .first(),
-        );
-      }
-    } else if (opts.clientRoles !== 'none') {
-      const member = await c.env.DB.prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
-        .bind(clientId, auth.user.id)
-        .first<{ role: 'admin' | 'member' }>();
-      allowed = member !== null && (!opts.clientRoles || opts.clientRoles.includes(member.role));
+    const access = await clientAccessFor(c.env, auth, clientId);
+    let allowed = access !== null;
+    if (access && access !== 'staff') {
+      allowed = opts.clientRoles !== 'none' && (!opts.clientRoles || opts.clientRoles.includes(access));
     }
-    if (!allowed) return c.json({ error: 'not_found' }, 404);
+    if (!allowed || !access) return c.json({ error: 'not_found' }, 404);
+    c.set('clientAccess', access);
     await next();
   };
+}
+
+/** How the caller reaches the route's client. Only valid behind requireClientAccess. */
+export function accessOf(c: C): ClientAccess {
+  const access = c.get('clientAccess');
+  if (!access) throw new HttpError(404, 'not_found');
+  return access;
 }
 
 export function hasRole(auth: AuthState | null, ...roles: Role[]): boolean {
