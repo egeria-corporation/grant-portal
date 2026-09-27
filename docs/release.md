@@ -45,7 +45,7 @@ Work through this for every release, top to bottom. Items marked **(CI)** are en
 ## 6. Docs and publishing
 
 - [ ] `docs/PLAN.md` and `docs/DECISIONS.md` are current. Every new decision has an entry.
-- [ ] README screenshots (branded login, consultant home, client home) are retaken if the UI changed.
+- [ ] README screenshots (branded login, consultant home, client home) are retaken if the UI changed: `SCREENSHOTS=1 npm run test:e2e`.
 - [ ] Release notes cover new features, fixes, migrations, security changes, and any manual steps for existing deployments.
 - [ ] Tag the release (`vX.Y.Z`) and publish it on GitHub. Tags are signed.
 - [ ] If there's a public demo deployment (`DEMO_MODE=1`), update it and check it resets overnight.

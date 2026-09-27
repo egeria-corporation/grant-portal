@@ -6,6 +6,16 @@ An open-source, white-label client portal for grant consultants. It runs in your
 
 > **Status:** v0.1 release candidate. All milestones in [`docs/PLAN.md`](docs/PLAN.md) are built; the release checklist is [`docs/release.md`](docs/release.md).
 
+<p>
+  <img src="docs/screenshots/login.png" alt="Branded sign-in page for a sample firm, Northwind Grants" width="49%">
+  <img src="docs/screenshots/consultant-home.png" alt="Consultant Today screen: clients needing attention, items due this week, uploads received" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/client-home.png" alt="Client portal home on a phone: what needs attention, upcoming deadlines, the latest update, and the funding pipeline" width="30%">
+</p>
+
+<sub>Screenshots use a sample firm; refresh them with <code>SCREENSHOTS=1 npm run test:e2e</code>.</sub>
+
 ## What it does
 
 **For your clients:** a quiet, branded portal that answers two questions: "what do you need from me?" and "what's happening with my funding?"

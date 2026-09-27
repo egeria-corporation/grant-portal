@@ -21,6 +21,17 @@ export function AppShell({ nav, children, aside }: { nav: { to: string; label: s
     },
   });
 
+  const links = nav.map((n) => (
+    <Link
+      key={n.to}
+      to={n.to}
+      activeOptions={{ exact: n.exact ?? false }}
+      className="shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13.5px] text-text2 hover:bg-hover hover:text-text [&.active]:bg-active [&.active]:text-text"
+    >
+      {n.label}
+    </Link>
+  ));
+
   return (
     <div className="min-h-dvh bg-bg">
       {config.data?.demo ? (
@@ -29,20 +40,13 @@ export function AppShell({ nav, children, aside }: { nav: { to: string; label: s
         </p>
       ) : null}
       <header className="border-b border-border bg-raised">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
           <FirmLogo height={28} />
-          <nav className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1 sm:ml-2" aria-label="Main">
-            {nav.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                activeOptions={{ exact: n.exact ?? false }}
-                className="shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13.5px] text-text2 hover:bg-hover hover:text-text [&.active]:bg-active [&.active]:text-text"
-              >
-                {n.label}
-              </Link>
-            ))}
+          {/* Wide screens: the sections sit inline. Narrower: their own wrapping row below, so none hide off-screen. */}
+          <nav className="ml-2 hidden min-w-0 flex-1 gap-1 lg:flex" aria-label="Main">
+            {links}
           </nav>
+          <span className="flex-1 lg:hidden" />
           {aside}
           <div className="hidden sm:block">
             <ThemeToggle />
@@ -52,8 +56,11 @@ export function AppShell({ nav, children, aside }: { nav: { to: string; label: s
             <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
+        <nav className="mx-auto flex max-w-6xl flex-wrap gap-1 px-3 pb-2 lg:hidden" aria-label="Main">
+          {links}
+        </nav>
       </header>
-      <main className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">{children}</main>
+      <main className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8">{children}</main>
     </div>
   );
 }
