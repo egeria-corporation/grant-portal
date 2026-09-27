@@ -141,3 +141,84 @@ Playwright runs `vite preview` with `PORTAL_E2E=1`. That uses a separate persist
 
 ### New dependencies (M1)
 `@simplewebauthn/server` and `@simplewebauthn/browser` (spec §4 stack) for passkeys. Nothing else.
+
+## M2
+
+### D-034 Accent ramp: the design's `calc()`, with accessibility guarantees on top
+`shared/theme/ramp.ts` ports `calc()` from `docs/design/boards/01-foundations.html` (OKLCH, gamut clipping). A unit test pins the port against the design's own token table: all four firms (Northwind, Bloom, Evergreen, Custom), light and dark, every token exact. Three deviations from the board's script:
+- **Dark hover.** The board's source says `solidh = solid − 0.03`, but its token table (the rendered truth) lightens by 0.04, or darkens by 0.03 when the solid had to go below the brand's lightness. The port follows the table.
+- **Contrast is checked on rounded hex.** 8-bit rounding can pull a just-passing shade under 4.5:1 (grey `#777777` on white is 4.48:1). The dark-mode search and a final pass judge the color as it ships.
+- **Accent text is checked against every surface.** The board only checks the page background, so dark links on cards could fall to 4.30:1. When the theme builder passes the brand's real surfaces (bg, raised, overlay, sunken, hover) plus the accent's own a50/a100 tints (the "Recommended" pill), accent text reaches 4.5:1 on all of them. The bare call, used by the parity test, is unchanged.
+
+Any accent is accepted. The ramp nudges it and the API reports whether it did (`adjusted`), which supersedes D-031's M1 rejection. The unit test runs 24 hard colors (white, black, yellow, neon green, greys) and every sample brand across all three neutral temperatures, in both modes, against the AA thresholds.
+
+### D-035 Brand delivery: server-injected head and versioned URLs
+The Worker writes the brand into every HTML response's `<head>`:
+- `theme.css` (nonce'd), the favicon, the manifest, `theme-color`, and the `<title>`;
+- `og:*` and Twitter tags (link unfurlers don't run JavaScript);
+- `data-theme` from the `theme` cookie, and `class="d-compact"` for the compact density.
+
+Nothing flashes unbranded, and the SPA doesn't patch styles at runtime.
+
+Every brand URL carries `?v=<version>`, where the version is a hash of the brand settings and asset hashes. Changing the brand changes the URL, so "purge on change" (spec §8.2) needs no purge call:
+- A request with the current version gets `immutable` for a year. It is served from Cloudflare's edge cache (`caches.default`) without touching D1.
+- Rendered CSS and the generated OG card are also kept in KV per version.
+- Unversioned or stale URLs get `max-age=60`.
+
+Brand files send `Cross-Origin-Resource-Policy: cross-origin`, because email clients and unfurlers embed them. Everything else stays `same-origin`.
+
+### D-036 SVG logo sanitizer
+Workers have no DOM, so `worker/brand/svg.ts` is a small allowlist parser:
+- It rejects DOCTYPE, ENTITY, CDATA and processing instructions other than the XML declaration.
+- Unknown elements are dropped with their whole subtree.
+- Attributes are allowlisted, and their values are entity-decoded before checking.
+- `href` may only point at a fragment, and `url()` only at `url(#id)`.
+- Values containing quotes or angle brackets are dropped rather than escaped.
+- The output is re-serialized from the parsed tree.
+
+Served SVGs also get `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` and `nosniff`. A 20-payload XSS corpus is in `tests/unit/svg.test.ts`. Rasterizing was rejected: no canvas in Workers, and a WASM rasterizer would dominate the Worker's size.
+
+### D-037 Brand assets
+There are six slots:
+- light logo, dark logo, mark, favicon;
+- link-preview image;
+- heading font (WOFF2).
+
+Handling:
+- **Type:** detected from the bytes; the declared `Content-Type` is ignored.
+- **Size:** capped per slot (256 KB to 2 MB).
+- **SVGs:** sanitized before storage.
+- **Storage:** each file gets a random R2 key (`brand/{uuid}`), and the previous object is deleted on replace.
+
+Generated fallbacks:
+- **Favicon:** an SVG of the firm's initials on the accent. An uploaded SVG favicon or mark takes its place.
+- **`apple-touch-icon`:** emitted only when a PNG mark or favicon exists.
+- **Link preview:** without an upload, a 1200×630 PNG card in the accent color. It's produced by a 60-line encoder (zlib via `CompressionStream`, CRC32), not a canvas.
+
+### D-038 Component layer and Tailwind
+The boards' shared stylesheet is ported to `app/styles/components.css` as Tailwind's `components` layer, and `app/ui/*` wraps it in typed React components. The port made these changes:
+- **Dropped:** board-only demo rules, and helpers that clash with Tailwind utilities (`.row`, `.grow`, `.trunc`, …).
+- **Renamed:** `.ring` became `.cd-ring`, because it collided with Tailwind's `ring` utility.
+- **Tokenized:** the four literal colors became tokens (`--knob`, `--shadow`).
+- **Fixed for AA:** the board's secondary text fell below it in three places. The countdown `.sub` was at 80% opacity, the done-chip subtext sat at 4.48:1 on the success tint, and the danger toast's action was too faint. Each now uses the full-strength status color.
+
+`@theme inline` makes Tailwind utilities reference the semantic variables directly. Without it, `--color-text2: var(--text2)` resolves at `:root`, and a theme scoped to an element (brand previews, the kitchen sink) doesn't reach utility classes. `tests/build/no-literal-colors.test.ts` enforces "semantic tokens only".
+
+### D-039 Status colors are system-wide
+The boards vary status hues per sample firm: Northwind's info is teal, Bloom's danger is rose, Evergreen's success is lime. Brands here control the accent, gray temperature, corners, density and heading font. Status colors are the design's default set for every brand, so "overdue" and "approved" read the same in every portal and their AA pairs are tested once.
+
+### D-040 Fonts
+Geist, Geist Mono, Source Serif 4 and Newsreader come from `@fontsource-variable/*` (OFL-1.1). They are bundled into `/assets` and served same-origin, with no Google Fonts call (spec §8.1). Heading presets: Sans (Geist), Source Serif and Newsreader. An uploaded WOFF2 becomes the "Uploaded font" preset. Until a font is uploaded, a `custom` heading falls back to Sans.
+
+### D-041 Light and dark
+Each user chooses Light, Dark or System with the toggle in the header or sign-in footer, and System is the default. The choice is stored in a plain `theme` cookie (not sensitive, not HttpOnly), so the server renders the right mode on the next load. `theme.css` carries a light `:root`, a `prefers-color-scheme` dark block, and a forced `[data-theme="dark"]` block.
+
+### D-042 Kitchen sink
+`/_dev/kitchen-sink?brand=northwind|bloom|evergreen` renders every component in light and dark side by side, each panel themed through the same variables `theme.css` produces. It is code-split, and it renders only when the server reports `devTools` (`APP_ENV` development or test); production shows "Page not found". E2E runs axe's `color-contrast` rule over it for all three brands. It found the D-038 issues and the D-034 tint case.
+
+### D-043 "Powered by" line
+Spec §8.2 asks for an optional, off-by-default "Powered by" footer. The no-maintainer-branding rule (CLAUDE.md #3) keeps the product name out of every client-facing surface, so the line says "Powered by open-source software" with no link.
+
+### New dependencies (M2)
+- `@fontsource-variable/geist`, `-geist-mono`, `-source-serif-4`, `-newsreader`: self-hosted fonts (OFL-1.1).
+- `@axe-core/playwright` (dev only): contrast checks in E2E, and the M6 axe pass.

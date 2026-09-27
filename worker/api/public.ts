@@ -4,18 +4,27 @@
  */
 import { Hono } from 'hono';
 import { readDevOutbox } from '../email/outbox';
+import { assetUrl, getBrandState } from '../brand/state';
 import type { AppBindings } from '../env';
-import { DEFAULT_ACCENT, getSetting } from '../lib/settings';
+import { getSetting } from '../lib/settings';
 import { turnstileConfig } from '../lib/turnstile';
 
 export const publicApi = new Hono<AppBindings>().get('/config', async (c) => {
-  const [brand, setup, ts] = await Promise.all([getSetting(c.env, 'brand'), getSetting(c.env, 'setup'), turnstileConfig(c.env)]);
+  const [brand, setup, ts] = await Promise.all([getBrandState(c.env), getSetting(c.env, 'setup'), turnstileConfig(c.env)]);
   return c.json(
     {
-      firmName: brand?.firmName ?? null,
-      shortName: brand?.shortName ?? null,
-      accent: brand?.accent ?? DEFAULT_ACCENT,
-      welcome: brand?.welcome ?? null,
+      firmName: brand.firmName,
+      shortName: brand.shortName,
+      accent: brand.theme.accent,
+      welcome: brand.welcome,
+      theme: brand.theme,
+      brandVersion: brand.version,
+      logoLight: assetUrl(brand, 'logo-light'),
+      logoDark: assetUrl(brand, 'logo-dark'),
+      mark: assetUrl(brand, 'mark'),
+      poweredBy: brand.poweredBy,
+      /** Dev-only pages (the kitchen sink) render only when this is true. */
+      devTools: c.env.APP_ENV === 'development' || c.env.APP_ENV === 'test' || import.meta.env.DEV,
       setupStatus: setup?.status ?? 'unclaimed',
       turnstileSiteKey: ts?.siteKey ?? null,
     },

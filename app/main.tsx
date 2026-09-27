@@ -3,6 +3,11 @@ import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { routeTree } from './routeTree.gen';
+// Self-hosted fonts (OFL-1.1), bundled into /assets: no third-party font requests (spec §8.1).
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import '@fontsource-variable/source-serif-4';
+import '@fontsource-variable/newsreader';
 import './styles/app.css';
 
 const queryClient = new QueryClient({

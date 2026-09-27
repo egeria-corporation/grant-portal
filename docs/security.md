@@ -41,6 +41,13 @@ The first person to finish step 1 of the wizard becomes the Owner, and the step 
 - **Input.** Every endpoint validates its body with Zod (64 KB cap). Errors never echo input back.
 - **Authorization.** Middleware on every route decides who may call it. A generated test lists every route in the app and fails if any route lacks a policy. It calls each route as every kind of user and checks cross-client (IDOR) access on client-scoped routes. Client IDs you can't access answer 404, not 403, so they can't be probed.
 
+## Brand files
+
+- Uploaded logos, marks, favicons, preview images and fonts are checked by their bytes, not by what the browser says they are. Each slot has a type allowlist and a size cap.
+- **SVGs are rebuilt, not trusted.** A strict allowlist parser keeps shapes, gradients and text, and drops scripts, event handlers, links, embedded HTML, external references, styles and entity declarations. Files it can't make safe are refused.
+- Every SVG served also carries a sandboxing Content-Security-Policy, so even a missed payload couldn't run.
+- Brand files live in R2 under random keys and are public by design: the sign-in page, emails and link previews need them.
+
 ## Secrets and sensitive data
 
 - `SESSION_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first boot if you leave them blank. They're kept in KV, and the Owner sees a banner recommending you move them to Worker secrets.

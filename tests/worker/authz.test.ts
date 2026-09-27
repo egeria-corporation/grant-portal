@@ -15,6 +15,11 @@ type Policy = 'public' | 'auth' | 'staffAccount' | 'staff' | 'owner' | 'client' 
 
 const POLICY: Record<string, Policy> = {
   'GET /healthz': 'public',
+  'GET /brand/theme.css': 'public',
+  'GET /brand/icon.svg': 'public',
+  'GET /brand/manifest.webmanifest': 'public',
+  'GET /brand/og.png': 'public',
+  'GET /brand/asset/:slot': 'public',
   'POST /auth/magic/request': 'public',
   'POST /auth/link/peek': 'public',
   'POST /auth/link/consume': 'public',
@@ -41,6 +46,9 @@ const POLICY: Record<string, Policy> = {
   'DELETE /api/passkeys/:id': 'auth',
   'GET /api/settings/overview': 'owner',
   'PUT /api/settings/brand': 'owner',
+  'GET /api/settings/brand': 'owner',
+  'PUT /api/settings/brand/assets/:slot': 'owner',
+  'DELETE /api/settings/brand/assets/:slot': 'owner',
   'GET /api/settings/email': 'owner',
   'PUT /api/settings/email': 'owner',
   'POST /api/settings/email/verify': 'owner',
@@ -108,7 +116,8 @@ describe('authorization per route', () => {
       .replace(':clientId', clientId)
       .replace(':userId', ids.memberA)
       .replace(':id', 'x_01J00000000000000000000000')
-      .replace(':step', 'brand');
+      .replace(':step', 'brand')
+      .replace(':slot', 'logo-light');
 
   async function hit(route: string, actor: string | null, clientId = ids.clientA): Promise<number> {
     const [method = 'GET', path = '/'] = route.split(' ');

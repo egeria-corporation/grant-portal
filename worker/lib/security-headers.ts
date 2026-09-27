@@ -55,8 +55,14 @@ const COMMON: Record<string, string> = {
   'X-Permitted-Cross-Domain-Policies': 'none',
 };
 
-/** Sets the common header set; does not overwrite a CSP a handler already chose. */
+/** Headers a route may deliberately relax (public brand files set CORP cross-origin). */
+const ROUTE_OVERRIDABLE = new Set(['Cross-Origin-Resource-Policy']);
+
+/** Sets the common header set; does not overwrite a CSP (or CORP) a handler already chose. */
 export function applySecurityHeaders(headers: Headers, csp: string = API_CSP): void {
-  for (const [k, v] of Object.entries(COMMON)) headers.set(k, v);
+  for (const [k, v] of Object.entries(COMMON)) {
+    if (ROUTE_OVERRIDABLE.has(k) && headers.has(k)) continue;
+    headers.set(k, v);
+  }
   if (!headers.has('Content-Security-Policy')) headers.set('Content-Security-Policy', csp);
 }

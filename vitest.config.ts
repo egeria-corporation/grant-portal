@@ -31,6 +31,11 @@ export default defineConfig({
         },
       },
       {
+        // Pure functions (theme ramp, sanitizers) that don't need the Workers runtime.
+        resolve: { alias: { '@shared': root('./shared') } },
+        test: { name: 'unit', environment: 'node', include: ['tests/unit/**/*.test.ts'] },
+      },
+      {
         // Node-side checks over build output and source (e.g. no maintainer branding).
         test: {
           name: 'build',

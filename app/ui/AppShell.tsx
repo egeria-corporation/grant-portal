@@ -5,11 +5,11 @@ import { LogOut } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { postJson } from '@/lib/api';
 import { useBrand } from '@/lib/session';
-import { FirmMark } from './AuthShell';
+import { FirmLogo, ThemeToggle } from './brand';
 import { Button } from './controls';
 
 export function AppShell({ nav, children }: { nav: { to: string; label: string }[]; children: ReactNode }) {
-  const config = useBrand();
+  useBrand();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const signOut = useMutation({
@@ -19,14 +19,12 @@ export function AppShell({ nav, children }: { nav: { to: string; label: string }
       await navigate({ to: '/signin' });
     },
   });
-  const firm = config.data?.shortName || config.data?.firmName || '';
 
   return (
     <div className="min-h-dvh bg-bg">
       <header className="border-b border-border bg-raised">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
-          <FirmMark name={firm} size={28} />
-          <span className="hd truncate text-[15px]">{firm}</span>
+          <FirmLogo height={28} />
           <nav className="ml-4 flex gap-1" aria-label="Main">
             {nav.map((n) => (
               <Link
@@ -39,7 +37,10 @@ export function AppShell({ nav, children }: { nav: { to: string; label: string }
               </Link>
             ))}
           </nav>
-          <Button variant="ghost" size="sm" className="ml-auto" loading={signOut.isPending} onClick={() => signOut.mutate()}>
+          <div className="ml-auto hidden sm:block">
+            <ThemeToggle />
+          </div>
+          <Button variant="ghost" size="sm" loading={signOut.isPending} onClick={() => signOut.mutate()}>
             <LogOut aria-hidden className="size-3.5" />
             Sign out
           </Button>

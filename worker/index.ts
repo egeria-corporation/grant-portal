@@ -5,7 +5,7 @@
  *   /api/*          JSON API (authz middleware → handlers)
  *   /auth/*         POST: magic links, codes, passkeys, sign-out; GET: SPA pages
  *   /f/*            authorised file downloads                  (M3)
- *   /brand/*        theme.css, favicon, manifest, OG image     (M2)
+ *   /brand/*        theme.css, icon, manifest, OG image, uploaded brand files
  *   /webhooks/*     Resend delivery events                     (M4)
  *   everything else SPA HTML with a per-request CSP nonce, or a static file
  */
@@ -20,6 +20,7 @@ import { system } from './api/system';
 import { team } from './api/team';
 import { csrf } from './auth/csrf';
 import { auth } from './auth/routes';
+import { brand } from './brand/routes';
 import { loadSession } from './auth/session';
 import type { AppBindings, AppEnv } from './env';
 import { HttpError } from './lib/http';
@@ -61,6 +62,7 @@ app.use('/api/*', loadSession);
 app.use('/auth/*', loadSession);
 
 app.route('/healthz', health);
+app.route('/brand', brand);
 app.route('/auth', auth);
 app.route('/api/public', publicApi);
 app.route('/api/dev', devApi);

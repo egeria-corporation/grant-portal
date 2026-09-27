@@ -14,11 +14,13 @@ import { Route as PortalRouteRouteImport } from './routes/portal/route'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as WorkspaceRouteRouteImport } from './routes/workspace/route'
+import { Route as DevKitchenSinkRouteImport } from './routes/[_]dev/kitchen-sink'
 import { Route as AuthVerifyRouteImport } from './routes/auth/verify'
 import { Route as PortalIndexRouteImport } from './routes/portal/index'
 import { Route as PortalSecurityRouteImport } from './routes/portal/security'
 import { Route as WorkspaceIndexRouteImport } from './routes/workspace/index'
 import { Route as WorkspaceSecurityRouteImport } from './routes/workspace/security'
+import { Route as WorkspaceSettingsBrandRouteImport } from './routes/workspace/settings/brand'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -43,6 +45,11 @@ const SigninRoute = SigninRouteImport.update({
 const WorkspaceRouteRoute = WorkspaceRouteRouteImport.update({
   id: '/workspace',
   path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevKitchenSinkRoute = DevKitchenSinkRouteImport.update({
+  id: '/_dev/kitchen-sink',
+  path: '/_dev/kitchen-sink',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthVerifyRoute = AuthVerifyRouteImport.update({
@@ -70,6 +77,11 @@ const WorkspaceSecurityRoute = WorkspaceSecurityRouteImport.update({
   path: '/security',
   getParentRoute: () => WorkspaceRouteRoute,
 } as any)
+const WorkspaceSettingsBrandRoute = WorkspaceSettingsBrandRouteImport.update({
+  id: '/settings/brand',
+  path: '/settings/brand',
+  getParentRoute: () => WorkspaceRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -77,21 +89,25 @@ export interface FileRoutesByFullPath {
   '/workspace': typeof WorkspaceRouteRouteWithChildren
   '/setup': typeof SetupRoute
   '/signin': typeof SigninRoute
+  '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/portal/security': typeof PortalSecurityRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
   '/portal/': typeof PortalIndexRoute
   '/workspace/': typeof WorkspaceIndexRoute
+  '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/setup': typeof SetupRoute
   '/signin': typeof SigninRoute
+  '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/portal/security': typeof PortalSecurityRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
   '/portal': typeof PortalIndexRoute
   '/workspace': typeof WorkspaceIndexRoute
+  '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -100,11 +116,13 @@ export interface FileRoutesById {
   '/workspace': typeof WorkspaceRouteRouteWithChildren
   '/setup': typeof SetupRoute
   '/signin': typeof SigninRoute
+  '/_dev/kitchen-sink': typeof DevKitchenSinkRoute
   '/auth/verify': typeof AuthVerifyRoute
   '/portal/security': typeof PortalSecurityRoute
   '/workspace/security': typeof WorkspaceSecurityRoute
   '/portal/': typeof PortalIndexRoute
   '/workspace/': typeof WorkspaceIndexRoute
+  '/workspace/settings/brand': typeof WorkspaceSettingsBrandRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -114,21 +132,25 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/setup'
     | '/signin'
+    | '/_dev/kitchen-sink'
     | '/auth/verify'
     | '/portal/security'
     | '/workspace/security'
     | '/portal/'
     | '/workspace/'
+    | '/workspace/settings/brand'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/setup'
     | '/signin'
+    | '/_dev/kitchen-sink'
     | '/auth/verify'
     | '/portal/security'
     | '/workspace/security'
     | '/portal'
     | '/workspace'
+    | '/workspace/settings/brand'
   id:
     | '__root__'
     | '/'
@@ -136,11 +158,13 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/setup'
     | '/signin'
+    | '/_dev/kitchen-sink'
     | '/auth/verify'
     | '/portal/security'
     | '/workspace/security'
     | '/portal/'
     | '/workspace/'
+    | '/workspace/settings/brand'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -149,6 +173,7 @@ export interface RootRouteChildren {
   WorkspaceRouteRoute: typeof WorkspaceRouteRouteWithChildren
   SetupRoute: typeof SetupRoute
   SigninRoute: typeof SigninRoute
+  DevKitchenSinkRoute: typeof DevKitchenSinkRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
 }
 
@@ -189,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_dev/kitchen-sink': {
+      id: '/_dev/kitchen-sink'
+      path: '/_dev/kitchen-sink'
+      fullPath: '/_dev/kitchen-sink'
+      preLoaderRoute: typeof DevKitchenSinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/verify': {
       id: '/auth/verify'
       path: '/auth/verify'
@@ -224,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceSecurityRouteImport
       parentRoute: typeof WorkspaceRouteRoute
     }
+    '/workspace/settings/brand': {
+      id: '/workspace/settings/brand'
+      path: '/settings/brand'
+      fullPath: '/workspace/settings/brand'
+      preLoaderRoute: typeof WorkspaceSettingsBrandRouteImport
+      parentRoute: typeof WorkspaceRouteRoute
+    }
   }
 }
 
@@ -244,11 +283,13 @@ const PortalRouteRouteWithChildren = PortalRouteRoute._addFileChildren(
 interface WorkspaceRouteRouteChildren {
   WorkspaceSecurityRoute: typeof WorkspaceSecurityRoute
   WorkspaceIndexRoute: typeof WorkspaceIndexRoute
+  WorkspaceSettingsBrandRoute: typeof WorkspaceSettingsBrandRoute
 }
 
 const WorkspaceRouteRouteChildren: WorkspaceRouteRouteChildren = {
   WorkspaceSecurityRoute: WorkspaceSecurityRoute,
   WorkspaceIndexRoute: WorkspaceIndexRoute,
+  WorkspaceSettingsBrandRoute: WorkspaceSettingsBrandRoute,
 }
 
 const WorkspaceRouteRouteWithChildren = WorkspaceRouteRoute._addFileChildren(
@@ -261,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   WorkspaceRouteRoute: WorkspaceRouteRouteWithChildren,
   SetupRoute: SetupRoute,
   SigninRoute: SigninRoute,
+  DevKitchenSinkRoute: DevKitchenSinkRoute,
   AuthVerifyRoute: AuthVerifyRoute,
 }
 export const routeTree = rootRouteImport

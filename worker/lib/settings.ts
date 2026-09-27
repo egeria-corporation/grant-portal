@@ -4,6 +4,7 @@
  * a bad row can't take the portal down. Secrets inside settings (API keys,
  * Turnstile secret) are stored AES-GCM encrypted with the data key.
  */
+import { DENSITIES, HEADINGS, NEUTRALS, RADII } from '@shared/theme/tokens';
 import { z } from 'zod';
 import { DEFAULT_ORG_ID } from '../db/schema';
 import type { AppEnv } from '../env';
@@ -28,7 +29,18 @@ export const SETTINGS = {
     shortName: z.string().max(24).optional(),
     accent: hex,
     welcome: z.string().max(280).optional(),
+    neutral: z.enum(NEUTRALS).default('neutral'),
+    radius: z.enum(RADII).default('soft'),
+    density: z.enum(DENSITIES).default('comfortable'),
+    heading: z.enum(HEADINGS).default('sans'),
+    /** Optional "Powered by" credit, off by default (spec §8.2). */
+    poweredBy: z.boolean().default(false),
   }),
+  /** Uploaded brand files in R2 (worker/brand/assets.ts). */
+  brand_assets: z.partialRecord(
+    z.enum(['logo-light', 'logo-dark', 'mark', 'favicon', 'og', 'font-heading']),
+    z.object({ key: z.string(), mime: z.string(), size: z.number(), sha256: z.string(), updatedAt: z.number() }),
+  ),
   email: z.object({
     fromName: z.string().max(80).optional(),
     fromLocal: z.string().max(64).optional(),

@@ -58,7 +58,9 @@ test('fresh deploy: claim, finish the wizard, land in the workspace, sign in aga
   await page.getByLabel('Firm name').fill('Northwind Grants');
   await page.getByLabel('Accent color', { exact: true }).fill('#1f5fad');
   await page.getByLabel('Welcome line for clients').fill('Welcome to Northwind.');
-  await expect(page.getByText(/passes WCAG AA/)).toBeVisible();
+  await expect(page.getByText(/WCAG AA/)).toBeVisible();
+  await page.getByRole('radio', { name: 'Cool' }).click();
+  await page.getByRole('radio', { name: 'Sharp' }).click();
   await page.getByRole('button', { name: 'Save and continue' }).click();
 
   // 4–6. Optional steps.
@@ -81,6 +83,14 @@ test('fresh deploy: claim, finish the wizard, land in the workspace, sign in aga
   await expect(page.getByText('Sample: Riverbend Community Pantry')).toBeVisible();
   await expect(page.getByText('Client invites and emails are paused')).toBeVisible();
   expect(await page.title()).toBe('Northwind Grants');
+
+  // The brand is applied by the server's theme.css, not client-side patching.
+  const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--acc-solid').trim());
+  expect(accent).toBe('#1f5fad');
+  const card = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--r-card').trim());
+  expect(card).toBe('4px');
+  await page.reload();
+  expect(await page.locator('head link[rel="stylesheet"][href^="/brand/theme.css?v="]').count()).toBe(1);
 
   // Sign out, then back in with the 6-digit code.
   await page.getByRole('button', { name: 'Sign out' }).click();
