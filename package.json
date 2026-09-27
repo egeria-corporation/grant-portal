@@ -77,7 +77,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/runner": "~4.1.11",
-    "@vitest/snapshot": "~4.1.11",
+    "@vitest/snapshot": "~5.0.1",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
