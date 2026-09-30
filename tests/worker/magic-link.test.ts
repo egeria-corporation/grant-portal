@@ -64,6 +64,16 @@ describe('magic link request', () => {
     expect(statuses[20]).toBe(429);
   });
 
+  it('counts IPv6 clients per /64, so a fresh address from the same /64 is still limited', async () => {
+    const statuses = [];
+    for (let i = 0; i < 21; i++) {
+      statuses.push((await requestLink(new Agent({ ip: `2001:db8:5:5::${(i + 1).toString(16)}` }), `v6-${i}@client.org`)).status);
+    }
+    expect(statuses.slice(0, 20).every((s) => s === 202)).toBe(true);
+    expect(statuses[20]).toBe(429);
+    expect((await requestLink(new Agent({ ip: '2001:db8:5:6::1' }), 'next-door@client.org')).status).toBe(202);
+  });
+
   it('requires a passing Turnstile token once Turnstile is configured', async () => {
     const pass = { ...testEnv, TURNSTILE_SITE_KEY: TEST_KEYS.alwaysPass.siteKey, TURNSTILE_SECRET_KEY: TEST_KEYS.alwaysPass.secret };
     const fail = { ...testEnv, TURNSTILE_SITE_KEY: TEST_KEYS.alwaysFail.siteKey, TURNSTILE_SECRET_KEY: TEST_KEYS.alwaysFail.secret };

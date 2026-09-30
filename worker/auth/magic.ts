@@ -7,6 +7,8 @@
  * - Codes allow 5 attempts per request; the 5th failure invalidates the request
  *   (link included).
  * - A new request supersedes the same email's outstanding requests of that purpose.
+ * - `prepareLink` builds a link that only exists once committed, so a caller can
+ *   store it after the email is sent (the setup claim, DECISIONS D-019).
  */
 import type { AppEnv } from '../env';
 import { randomBytes, randomToken, sha256Hex, timingSafeEqual, toHex } from '../lib/crypto';
@@ -38,28 +40,40 @@ export function sixDigitCode(): string {
   }
 }
 
-export async function createLink(
-  env: AppEnv,
-  p: {
-    email: string;
-    purpose: LinkPurpose;
-    ttlMs: number;
-    withCode: boolean;
-    clientId?: string | null;
-    inviteRole?: string | null;
-    createdBy?: string | null;
-    ipHash?: string | null;
-    uaHash?: string | null;
-    supersede?: boolean;
-  },
-): Promise<{ id: string; token: string; code: string | null; expiresAt: number }> {
+export interface LinkParams {
+  email: string;
+  purpose: LinkPurpose;
+  ttlMs: number;
+  withCode: boolean;
+  clientId?: string | null;
+  inviteRole?: string | null;
+  createdBy?: string | null;
+  ipHash?: string | null;
+  uaHash?: string | null;
+  /** true: retire this email's live links of the purpose. 'all': every live link of the purpose. */
+  supersede?: boolean | 'all';
+}
+
+export interface PreparedLink {
+  id: string;
+  token: string;
+  code: string | null;
+  expiresAt: number;
+  /** Stores the link and retires the ones it supersedes. Until then neither the token nor the code works. */
+  commit(): Promise<void>;
+}
+
+/** Builds a link without storing it; nothing changes in D1 until `commit()`. */
+export async function prepareLink(env: AppEnv, p: LinkParams): Promise<PreparedLink> {
   const now = Date.now();
   const id = newId('ml');
   const token = randomToken(32);
   const code = p.withCode ? sixDigitCode() : null;
   const salt = code ? toHex(randomBytes(16)) : null;
   const stmts: D1PreparedStatement[] = [];
-  if (p.supersede) {
+  if (p.supersede === 'all') {
+    stmts.push(env.DB.prepare('UPDATE magic_links SET used_at = ? WHERE purpose = ? AND used_at IS NULL').bind(now, p.purpose));
+  } else if (p.supersede) {
     stmts.push(
       env.DB.prepare('UPDATE magic_links SET used_at = ? WHERE email = ? AND purpose = ? AND used_at IS NULL').bind(
         now,
@@ -89,8 +103,24 @@ export async function createLink(
       now,
     ),
   );
-  await env.DB.batch(stmts);
-  return { id, token, code, expiresAt: now + p.ttlMs };
+  return {
+    id,
+    token,
+    code,
+    expiresAt: now + p.ttlMs,
+    commit: async () => {
+      await env.DB.batch(stmts);
+    },
+  };
+}
+
+export async function createLink(
+  env: AppEnv,
+  p: LinkParams,
+): Promise<{ id: string; token: string; code: string | null; expiresAt: number }> {
+  const { commit, ...link } = await prepareLink(env, p);
+  await commit();
+  return link;
 }
 
 function plausibleToken(token: string): boolean {

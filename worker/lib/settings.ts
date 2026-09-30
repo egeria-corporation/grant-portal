@@ -24,7 +24,7 @@ export const SETTINGS = {
     steps: z.record(z.string(), z.enum(['done', 'skipped'])).default({}),
   }),
   /** One-time setup code printed to the Worker logs (spec §3.3). Hash only. */
-  setup_code: z.object({ hash: z.string(), salt: z.string(), attempts: z.number(), createdAt: z.number() }),
+  setup_code: z.object({ hash: z.string(), salt: z.string(), createdAt: z.number() }),
   brand: z.object({
     firmName: z.string().max(80),
     shortName: z.string().max(24).optional(),

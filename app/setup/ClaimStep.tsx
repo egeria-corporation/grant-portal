@@ -106,7 +106,7 @@ export function ClaimStep({ emailConfigured }: { emailConfigured: boolean }) {
         >
           <Notice tone="info">
             A one-time setup code is printed in your Worker’s logs. In the Cloudflare dashboard, open{' '}
-            <strong>Workers &amp; Pages → your Worker → Logs</strong> and look for “Portal setup code”.
+            <strong>Workers &amp; Pages → your Worker → Logs</strong> and look for the most recent “Portal setup code”.
           </Notice>
           <Field label="Your email">
             {(p) => <Input {...p} type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
@@ -124,6 +124,7 @@ export function ClaimStep({ emailConfigured }: { emailConfigured: boolean }) {
             )}
           </Field>
           {withCode.isError ? <Notice tone="danger">{errorMessage(withCode.error)}</Notice> : null}
+          {reissue.isError ? <Notice tone="danger">{errorMessage(reissue.error)}</Notice> : null}
           <Button type="submit" size="lg" block loading={withCode.isPending}>
             Claim portal
           </Button>
