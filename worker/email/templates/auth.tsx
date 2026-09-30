@@ -106,3 +106,31 @@ export async function newDeviceEmail(brand: EmailBrand, p: { device: string; whe
   );
   return { subject, text, html };
 }
+
+/**
+ * Sent whenever a passkey is added. A passkey outlives every session ("sign
+ * out everywhere" included), so one planted from a stolen session must not go
+ * unnoticed. The passkey's label is typed by whoever added it, so it stays out.
+ */
+export async function passkeyAddedEmail(brand: EmailBrand, p: { device: string; when: string; securityUrl: string }): Promise<Rendered> {
+  const subject = `Passkey added to your ${brand.firm} account`;
+  const text = [
+    `A passkey was just added to your account from ${p.device}, ${p.when}. It can be used to sign in to ${brand.firm}.`,
+    'If this was you, there is nothing to do.',
+    `If it wasn't you, remove the passkey, then sign out everywhere. Signing out doesn't remove passkeys.\n${p.securityUrl}`,
+  ].join('\n\n');
+  const html = await renderHtml(
+    <Layout brand={brand} preview={`Passkey added: ${p.device}`}>
+      <H brand={brand}>Passkey added</H>
+      <P brand={brand}>
+        A passkey was just added to your account from {p.device}, {p.when}. It can be used to sign in to {brand.firm}.
+      </P>
+      <P brand={brand}>If this was you, there’s nothing to do.</P>
+      <P brand={brand}>If it wasn’t you, remove the passkey, then sign out everywhere. Signing out doesn’t remove passkeys.</P>
+      <Cta brand={brand} href={p.securityUrl}>
+        Review your passkeys
+      </Cta>
+    </Layout>,
+  );
+  return { subject, text, html };
+}

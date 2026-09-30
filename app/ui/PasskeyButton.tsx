@@ -1,12 +1,13 @@
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { KeyRound } from 'lucide-react';
 import { ApiError, errorMessage, postJson } from '@/lib/api';
 import { Button, Notice } from './controls';
 
 type RegOptions = Parameters<typeof startRegistration>[0]['optionsJSON'];
 
-/** Registers a passkey for the signed-in staff user (spec §7.1). */
+/** Registers a passkey for the signed-in staff user (spec §7.1). Needs a recent step-up (D-079). */
 export function AddPasskeyButton({ label, variant = 'primary' }: { label?: string; variant?: 'primary' | 'secondary' }) {
   const qc = useQueryClient();
   const add = useMutation({
@@ -24,7 +25,11 @@ export function AddPasskeyButton({ label, variant = 'primary' }: { label?: strin
         Add a passkey
       </Button>
       {add.isError ? (
-        <Notice tone="danger">{add.error instanceof Error && add.error.name === 'NotAllowedError' ? 'Passkey setup was cancelled.' : errorMessage(add.error)}</Notice>
+        needsStepUp(add.error) ? (
+          <StepUp onDone={() => add.mutate()} />
+        ) : (
+          <Notice tone="danger">{add.error instanceof Error && add.error.name === 'NotAllowedError' ? 'Passkey setup was cancelled.' : errorMessage(add.error)}</Notice>
+        )
       ) : null}
       {add.isSuccess ? <Notice tone="ok">Passkey added. Next time, sign in with it.</Notice> : null}
     </div>
@@ -59,7 +64,11 @@ export function StepUp({ onDone }: { onDone: () => void }) {
         </Button>
       }
     >
-      For security, confirm it’s you first. No passkey on this device? Sign out and back in with an email link, then try again within 30 minutes.
+      For security, confirm it’s you first. No passkey on this device?{' '}
+      <Link to="/signin" className="underline underline-offset-2">
+        Sign in again with an email link
+      </Link>
+      , then try again within 30 minutes.
       {confirm.isError ? <span className="mt-1 block">{confirm.error instanceof Error && confirm.error.name === 'NotAllowedError' ? 'Cancelled.' : errorMessage(confirm.error)}</span> : null}
     </Notice>
   );

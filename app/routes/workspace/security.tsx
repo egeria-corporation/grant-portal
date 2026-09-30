@@ -4,7 +4,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { KeyRound } from 'lucide-react';
 import { deleteJson, errorMessage, getJson } from '@/lib/api';
 import { Button, Card, Notice } from '@/ui/controls';
-import { AddPasskeyButton } from '@/ui/PasskeyButton';
+import { AddPasskeyButton, needsStepUp, StepUp } from '@/ui/PasskeyButton';
 import { SessionsCard } from '@/ui/SessionsCard';
 import { CalendarCard, NotificationsCard } from '@/client/Preferences';
 
@@ -44,7 +44,7 @@ function PasskeysCard() {
           </li>
         ))}
       </ul>
-      {remove.isError ? <Notice tone="danger">{errorMessage(remove.error)}</Notice> : null}
+      {remove.isError ? needsStepUp(remove.error) ? <StepUp onDone={() => remove.mutate(remove.variables)} /> : <Notice tone="danger">{errorMessage(remove.error)}</Notice> : null}
       <div className="mt-3">
         <AddPasskeyButton variant="secondary" label="Staff passkey" />
       </div>

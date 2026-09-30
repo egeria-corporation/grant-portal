@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_BRANDS, type SampleBrand } from '../../shared/theme/tokens';
-import { inviteEmail, newDeviceEmail, signInEmail } from '../../worker/email/templates/auth';
+import { inviteEmail, newDeviceEmail, passkeyAddedEmail, signInEmail } from '../../worker/email/templates/auth';
 import { sampleEmailBrand } from '../../worker/email/templates/brand';
 import {
   alertMatchesEmail,
@@ -29,6 +29,7 @@ const templates: Record<string, (b: ReturnType<typeof sampleEmailBrand>) => Prom
   'sign-in': (b) => signInEmail(b, { link: 'https://portal.example.org/auth/verify?t=abc', code: '123456', minutes: 15 }),
   invite: (b) => inviteEmail(b, { link: 'https://portal.example.org/auth/verify?t=abc', inviter: 'Dana', hours: 72 }),
   'new-device': (b) => newDeviceEmail(b, { device: 'Chrome on macOS', when: 'Thu, 15 Apr 2027 16:00:00 GMT', securityUrl: 'https://portal.example.org/portal/security' }),
+  'passkey-added': (b) => passkeyAddedEmail(b, { device: 'Chrome on macOS', when: 'Thu, 15 Apr 2027 16:00:00 GMT', securityUrl: 'https://portal.example.org/workspace/security' }),
   'document-request': (b) =>
     documentRequestEmail(b, { title: 'For the arts council', message: 'The 2025 990, please.', items: ['Form 990', 'W-9'], dueAt: DUE, tz: 'America/Chicago', url: 'https://portal.example.org/portal/documents', footer: { reason: footer.reason, settingsUrl: footer.settingsUrl } }),
   reminder: (b) => reminderEmail(b, { kind: 'documents', title: 'For the arts council', lines: [{ title: 'W-9' }], dueAt: DUE, overdue: false, tz: 'America/Chicago', url: 'https://portal.example.org/portal/documents', footer }),
