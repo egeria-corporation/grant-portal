@@ -55,6 +55,12 @@ export async function createInvite(
   if (p.delivery === 'email' && !(await canEmailOthers(c.env))) throw new HttpError(409, 'email_domain_unverified');
   const kind = p.role === 'consultant' ? 'staff' : 'client';
   if (kind === 'staff' && !staffEmailAllowed(await securityPolicy(c.env), p.email)) throw new HttpError(422, 'domain_not_allowed', { fields: ['email'] });
+  if (p.clientId) {
+    // Nobody can join an archived client (D-080); only staff can reach one to try.
+    const client = await c.env.DB.prepare('SELECT archived_at FROM clients WHERE id = ?').bind(p.clientId).first<{ archived_at: number | null }>();
+    if (!client) throw new HttpError(404, 'not_found');
+    if (client.archived_at) throw new HttpError(409, 'client_archived');
+  }
 
   await enforce(c, INVITE_LIMITS.perInviterHour, inviter.user.id);
   await enforce(c, INVITE_LIMITS.perInviterDay, inviter.user.id);

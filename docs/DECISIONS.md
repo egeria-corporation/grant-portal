@@ -515,3 +515,22 @@ None.
 - **What remains:**
   - A consultant can still learn whether an address has an account by opening their own copy link. That either creates an account for the address in their client (visible on its People tab) or is recorded as `invite.refused`. Minting is audited too, so it can't be done quietly.
   - Before the sending domain is verified, an existing client user can't be added to another client, because emailed invites are blocked until then. This is deliberate.
+
+### D-080 Revoking client access
+- **Removing a client user, or changing their role:** `DELETE` or `PATCH /api/clients/:clientId/members/:userId`.
+  - Allowed for staff who can reach the client, and for client admins on their own client. Admins can already invite other admins, so managing colleagues gives them no new power.
+  - Nobody can do either to themselves (`409 cannot_remove_self`, `cannot_change_self`). So there's no "last admin" rule: an admin can't remove themselves, and staff can always invite a new admin.
+- **What removal does:**
+  - Deletes the membership. Access is checked on every request, so it ends at once.
+  - Revokes all of the person's sessions.
+  - Expires pending invites for that address to that client, so an old link can't re-add them.
+  - Revokes their calendar feed for the client and drops queued digest items about it.
+  - Keeps the account: they may belong to other clients, and past work still points at them. Signing in again by email reaches only the clients they still belong to.
+- **A role change** applies at once (the role is read on every request). Like a staff role change (D-076), it also revokes the person's sessions.
+- **Sessions are per person, not per client.** Both actions therefore also sign the person out of any other client they belong to; they just sign in again there.
+- **Pending client invites:** `GET /api/clients/:clientId/invites` lists them and `DELETE /api/clients/:clientId/invites/:inviteId` revokes one. Allowed for staff and the client's admins. Only that client's invites match, so a team invite or another client's invite answers 404.
+- **Archived clients** are closed to their client users. `clientAccessFor` now requires `archived_at IS NULL` for client users, and every client-scoped route, file download and calendar feed goes through it. (The portal home already hid archived clients.)
+  - Staff keep full access. Archiving is the reversible alternative to deletion (`docs/operations.md`), so staff need to review, export, un-archive or delete the client.
+  - Invites into an archived client are refused (`409 client_archived`). Accepting one was already refused.
+  - Un-archiving restores members' access.
+- **Audit and UI.** Every action is audited (`client.member_removed`, `client.member_role_changed`, `invite.revoked`) and appears on the client's timeline. The workspace People tab, and the portal's Profile & team page for admins, get a role picker, Remove, and a Pending invites list with Revoke.

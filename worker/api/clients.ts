@@ -133,6 +133,18 @@ async function clientRow(env: AppEnv, id: string): Promise<ClientRow> {
   return row;
 }
 
+/** A client user of this client (never staff: they reach clients through assignments, not membership). */
+async function clientMember(env: AppEnv, clientId: string, userId: string) {
+  const row = await env.DB.prepare(
+    `SELECT u.id, u.email, m.role FROM client_members m JOIN users u ON u.id = m.user_id
+      WHERE m.client_id = ? AND m.user_id = ? AND u.kind = 'client'`,
+  )
+    .bind(clientId, userId)
+    .first<{ id: string; email: string; role: 'admin' | 'member' }>();
+  if (!row) throw new HttpError(404, 'not_found');
+  return row;
+}
+
 /** Column updates for a validated patch; unknown keys never reach SQL. */
 function profileAssignments(p: ProfilePatch): [string, unknown][] {
   const cols: [string, unknown][] = [];
@@ -443,6 +455,20 @@ export const clients = new Hono<AppBindings>()
     return c.json({ members: rows.results.map((m) => (staff ? m : { ...m, activeSessions: undefined })) });
   })
 
+  /** Pending invites, so they can be revoked. Staff, or a client admin for their own org. */
+  .get('/:clientId/invites', adminOrStaff, async (c) => {
+    const rows = await c.env.DB.prepare(
+      `SELECT id, email, invite_role, expires_at FROM magic_links
+        WHERE purpose = 'invite' AND client_id = ? AND used_at IS NULL AND expires_at > ?
+        ORDER BY created_at DESC LIMIT 100`,
+    )
+      .bind(c.req.param('clientId'), Date.now())
+      .all<{ id: string; email: string; invite_role: string | null; expires_at: number }>();
+    return c.json({
+      invites: rows.results.map((i) => ({ id: i.id, email: i.email, role: i.invite_role === 'client_admin' ? 'admin' : 'member', expiresAt: i.expires_at })),
+    });
+  })
+
   /** Staff, or a client admin for their own org (spec §7.3). Client admins can only send email invites. */
   .post('/:clientId/invites', adminOrStaff, async (c) => {
     const body = await parseJson(c, z.object({ email: emailField, role: z.enum(['admin', 'member']), delivery: z.enum(['email', 'link']) }));
@@ -471,6 +497,75 @@ export const clients = new Hono<AppBindings>()
     const count = await revokeAllForUser(c.env, userId);
     await audit(c, { action: 'session.revoked_all_for_user', target: userId, meta: { count } });
     return c.json({ revoked: count });
+  })
+
+  /**
+   * Revokes a pending invite to this client (DECISIONS D-080). Staff, or a
+   * client admin for their own org. The link stops working at once.
+   */
+  .delete('/:clientId/invites/:inviteId', adminOrStaff, async (c) => {
+    const clientId = c.req.param('clientId');
+    const inviteId = c.req.param('inviteId');
+    const now = Date.now();
+    const res = await c.env.DB.prepare(
+      "UPDATE magic_links SET expires_at = ? WHERE id = ? AND client_id = ? AND purpose = 'invite' AND used_at IS NULL AND expires_at > ?",
+    )
+      .bind(now - 1, inviteId, clientId, now)
+      .run();
+    if (!res.meta.changes) throw new HttpError(404, 'not_found');
+    await c.env.DB.batch(eventStmts(c.env, { clientId, actor: authOf(c).user.id, type: 'member.invite_revoked' }));
+    await audit(c, { action: 'invite.revoked', target: inviteId, meta: { clientId } });
+    return c.json({ ok: true });
+  })
+
+  /**
+   * Changes a client user's role here (DECISIONS D-080). Staff, or a client
+   * admin for their own org, never on themselves. The role is read on every
+   * request, so it applies at once; like a staff role change (D-076), the
+   * person's sessions are also revoked so they start fresh.
+   */
+  .patch('/:clientId/members/:userId', adminOrStaff, async (c) => {
+    const body = await parseJson(c, z.object({ role: z.enum(['admin', 'member']) }));
+    const clientId = c.req.param('clientId');
+    const actor = authOf(c).user;
+    const member = await clientMember(c.env, clientId, c.req.param('userId'));
+    if (member.id === actor.id) throw new HttpError(409, 'cannot_change_self');
+    if (member.role === body.role) return c.json({ ok: true, revoked: 0 });
+    await c.env.DB.batch([
+      c.env.DB.prepare('UPDATE client_members SET role = ? WHERE client_id = ? AND user_id = ?').bind(body.role, clientId, member.id),
+      ...eventStmts(c.env, { clientId, actor: actor.id, type: 'member.role_changed', payload: { from: member.role, to: body.role } }),
+    ]);
+    const revoked = await revokeAllForUser(c.env, member.id);
+    await audit(c, { action: 'client.member_role_changed', target: member.id, meta: { clientId, from: member.role, to: body.role, revoked } });
+    return c.json({ ok: true, revoked });
+  })
+
+  /**
+   * Removes a client user from this client (DECISIONS D-080). Staff, or a
+   * client admin for their own org, never themselves. Access ends at once
+   * (membership is checked on every request), their sessions are revoked, and
+   * so is anything that could bring them back or keep telling them about the
+   * client: pending invites to this client, its calendar feed, queued digest
+   * items. The account itself stays; they may belong to other clients.
+   */
+  .delete('/:clientId/members/:userId', adminOrStaff, async (c) => {
+    const clientId = c.req.param('clientId');
+    const actor = authOf(c).user;
+    const member = await clientMember(c.env, clientId, c.req.param('userId'));
+    if (member.id === actor.id) throw new HttpError(409, 'cannot_remove_self');
+    const now = Date.now();
+    await c.env.DB.batch([
+      c.env.DB.prepare('DELETE FROM client_members WHERE client_id = ? AND user_id = ?').bind(clientId, member.id),
+      c.env.DB.prepare(
+        "UPDATE magic_links SET expires_at = ? WHERE email = ? AND purpose = 'invite' AND client_id = ? AND used_at IS NULL AND expires_at > ?",
+      ).bind(now - 1, member.email, clientId, now),
+      c.env.DB.prepare('UPDATE calendar_feeds SET revoked_at = ? WHERE user_id = ? AND client_id = ? AND revoked_at IS NULL').bind(now, member.id, clientId),
+      c.env.DB.prepare('DELETE FROM notifications WHERE user_id = ? AND client_id = ? AND emailed_at IS NULL').bind(member.id, clientId),
+      ...eventStmts(c.env, { clientId, actor: actor.id, type: 'member.removed', payload: { role: member.role } }),
+    ]);
+    const revoked = await revokeAllForUser(c.env, member.id);
+    await audit(c, { action: 'client.member_removed', target: member.id, meta: { clientId, role: member.role, revoked } });
+    return c.json({ ok: true, revoked });
   })
 
   .route('/:clientId/files', vault)

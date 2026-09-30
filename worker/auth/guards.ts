@@ -79,8 +79,10 @@ const CLIENT_ID_RE = /^cli_[0-9A-HJKMNP-TV-Z]{26}$/;
 /**
  * How `auth` may reach `clientId`, or null. Owner: any client. Consultant:
  * assigned clients, or all when the Owner granted it. Client users: clients
- * they are a member of. Used by requireClientAccess and by routes that find
- * the client through another row (file downloads).
+ * they are a member of, while the client isn't archived (staff keep access to
+ * archived clients so they can review, export, un-archive or delete them;
+ * DECISIONS D-080). Used by requireClientAccess and by routes that find the
+ * client through another row (file downloads, calendar feeds).
  */
 export async function clientAccessFor(env: AppEnv, auth: AuthState, clientId: string): Promise<ClientAccess | null> {
   if (!CLIENT_ID_RE.test(clientId)) return null;
@@ -94,7 +96,10 @@ export async function clientAccessFor(env: AppEnv, auth: AuthState, clientId: st
             .first();
     return row ? 'staff' : null;
   }
-  const member = await env.DB.prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+  const member = await env.DB.prepare(
+    `SELECT m.role FROM client_members m JOIN clients c ON c.id = m.client_id
+      WHERE m.client_id = ? AND m.user_id = ? AND c.archived_at IS NULL`,
+  )
     .bind(clientId, auth.user.id)
     .first<{ role: 'admin' | 'member' }>();
   return member?.role ?? null;

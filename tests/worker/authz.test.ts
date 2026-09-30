@@ -92,6 +92,10 @@ const POLICY: Record<string, Policy> = {
   'GET /api/clients/:clientId/members': 'clientScoped',
   'POST /api/clients/:clientId/invites': 'clientScopedAdmin',
   'POST /api/clients/:clientId/members/:userId/revoke-sessions': 'clientScopedStaff',
+  'PATCH /api/clients/:clientId/members/:userId': 'clientScopedAdmin',
+  'DELETE /api/clients/:clientId/members/:userId': 'clientScopedAdmin',
+  'GET /api/clients/:clientId/invites': 'clientScopedAdmin',
+  'DELETE /api/clients/:clientId/invites/:inviteId': 'clientScopedAdmin',
   'GET /api/clients/:clientId/files': 'clientScoped',
   'PATCH /api/clients/:clientId/files/:fileId': 'clientScopedStaff',
   'DELETE /api/clients/:clientId/files/:fileId': 'clientScoped',
@@ -221,6 +225,10 @@ interface Fixture {
   reportId: string;
   alertId: string;
   matchId: string;
+  /** A pending invite to the client. */
+  inviteId: string;
+  /** One of the client's users (set once the users exist). */
+  userId: string;
 }
 
 async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
@@ -238,6 +246,8 @@ async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
     reportId: newId('rpt'),
     alertId: newId('alr'),
     matchId: newId('alm'),
+    inviteId: newId('ml'),
+    userId: '',
   };
   const file = (id: string, shared: number) =>
     testEnv.DB.prepare(
@@ -267,6 +277,10 @@ async function fixtureFor(clientId: string, ownerId: string): Promise<Fixture> {
       clientId,
       now,
     ),
+    testEnv.DB.prepare(
+      `INSERT INTO magic_links (id, email, token_hash, expires_at, purpose, client_id, invite_role, created_by, delivery, created_at)
+       VALUES (?, ?, ?, ?, 'invite', ?, 'client_member', ?, 'email', ?)`,
+    ).bind(f.inviteId, `invitee-${clientId}@example.org`, `hash-${f.inviteId}`, now + 86_400_000, clientId, ownerId, now),
   ]);
   const alertSchedule = newId('sch');
   await testEnv.DB.batch([
@@ -321,6 +335,8 @@ describe('authorization per route', () => {
     await addMember(clientB, adminB.id, 'admin');
     ids = { clientA, clientB, memberA: memberA.id, owner: owner.id, consA: consA.id, consOther: consOther.id, adminA: adminA.id, adminB: adminB.id };
     fx = { A: await fixtureFor(clientA, owner.id), B: await fixtureFor(clientB, owner.id) };
+    fx.A.userId = memberA.id;
+    fx.B.userId = adminB.id;
   });
 
   /** Fills route params. `res` picks whose sub-resources to use (defaults to the client's own). */
@@ -328,7 +344,7 @@ describe('authorization per route', () => {
     const r = res ?? (clientId === ids.clientB ? fx.B : fx.A);
     return path
       .replace(':clientId', clientId)
-      .replace(':userId', ids.memberA)
+      .replace(':userId', r.userId)
       .replace(':fileId', r.fileId)
       .replace(':requestId', r.requestId)
       .replace(':itemId', r.itemId)
@@ -343,7 +359,7 @@ describe('authorization per route', () => {
       .replace(':kind', 'grant')
       .replace(':ogId', 'og-1')
       .replace(':funderId', 'f-1')
-      .replace(':inviteId', 'mlk_01J00000000000000000000000')
+      .replace(':inviteId', r.inviteId)
       .replace(':key', 'x')
       .replace(':n', '1')
       .replace(':id', 'x_01J00000000000000000000000')
@@ -378,8 +394,10 @@ describe('authorization per route', () => {
     return true;
   }
 
-  // Deletes run last so the fixtures they remove are still there for everything else.
-  const ordered = Object.entries(POLICY).sort(([a], [b]) => Number(a.startsWith('DELETE ')) - Number(b.startsWith('DELETE ')));
+  // Deletes run last so the fixtures they remove are still there for everything else. Removing a member
+  // runs last of all: it takes memberA out of client A, and every other route still calls as memberA.
+  const rank = (route: string) => (route === 'DELETE /api/clients/:clientId/members/:userId' ? 2 : route.startsWith('DELETE ') ? 1 : 0);
+  const ordered = Object.entries(POLICY).sort(([a], [b]) => rank(a) - rank(b));
 
   for (const [route, policy] of ordered) {
     if (policy === 'public') continue;
@@ -449,7 +467,8 @@ describe('authorization per route', () => {
     // Every route that names a row inside a client, called with client A's ID
     // but client B's row. Scoping only by the URL's client would leak B here.
     const nested = Object.entries(POLICY).filter(
-      ([route, p]) => p.startsWith('clientScoped') && /:(fileId|requestId|itemId|deliverableId|versionId|updateId|scheduleId|opportunityId|reportId|alertId|matchId)/.test(route),
+      ([route, p]) =>
+        p.startsWith('clientScoped') && /:(fileId|requestId|itemId|deliverableId|versionId|updateId|scheduleId|opportunityId|reportId|alertId|matchId|userId|inviteId)/.test(route),
     );
     // Valid bodies, so validation can't answer before the lookup does.
     const body = (route: string): unknown => {
@@ -459,6 +478,7 @@ describe('authorization per route', () => {
       if (route.endsWith('/respond')) return { response: 'pursue' };
       if (route.endsWith('/reports/:reportId/items')) return { opportunityId: fx.A.opportunityId };
       if (route.endsWith('/order')) return { opportunityIds: [] };
+      if (route.endsWith('/members/:userId')) return { role: 'admin' };
       if (route.startsWith('PATCH ')) return { title: 'x' };
       return {};
     };
@@ -486,6 +506,43 @@ describe('authorization per route', () => {
         const r = await owner.fetch(path, { method, json });
         expect(r.status, `${method} ${path}`).toBe(404);
       }
+    });
+
+    it('membership and invite routes never reach people or invites outside the client', async () => {
+      const A = ids.clientA;
+      // By ID in the path: staff (never members), client B's user, client B's invite.
+      const cases: [string, string, unknown][] = [
+        ['PATCH', `/api/clients/${A}/members/${ids.consA}`, { role: 'admin' }],
+        ['DELETE', `/api/clients/${A}/members/${ids.consA}`, undefined],
+        ['DELETE', `/api/clients/${A}/members/${ids.owner}`, undefined],
+        ['POST', `/api/clients/${A}/members/${ids.consA}/revoke-sessions`, {}],
+        ['PATCH', `/api/clients/${A}/members/${ids.adminB}`, { role: 'member' }],
+        ['DELETE', `/api/clients/${A}/members/${ids.adminB}`, undefined],
+        ['DELETE', `/api/clients/${A}/invites/${fx.B.inviteId}`, undefined],
+      ];
+      for (const actor of [ids.owner, ids.adminA]) {
+        const agent = await agentFor(actor);
+        for (const [method, path, json] of cases) {
+          const r = await agent.fetch(path, { method, json });
+          expect(r.status, `${actor}: ${method} ${path}`).toBe(404);
+        }
+        // Listing shows only this client's invites.
+        const list = (await (await agent.fetch(`/api/clients/${A}/invites`)).json()) as { invites: { id: string }[] };
+        expect(list.invites.map((i) => i.id)).not.toContain(fx.B.inviteId);
+      }
+      // By reference in the body: inviting client B's admin into A attaches nobody (D-079), and a client
+      // user can't be made a consultant on A.
+      const owner = await agentFor(ids.owner);
+      const adminB = await testEnv.DB.prepare('SELECT email FROM users WHERE id = ?').bind(ids.adminB).first<{ email: string }>();
+      const invited = await owner.fetch(`/api/clients/${A}/invites`, { method: 'POST', json: { email: adminB?.email, role: 'admin', delivery: 'link' } });
+      expect(invited.status).toBe(201);
+      const inA = await testEnv.DB.prepare('SELECT 1 AS ok FROM client_members WHERE client_id = ? AND user_id = ?').bind(A, ids.adminB).first();
+      expect(inA).toBeNull();
+      const assigned = await owner.fetch(`/api/clients/${A}/assignments`, { method: 'PUT', json: { userIds: [ids.adminB] } });
+      expect(assigned.status).toBe(422);
+      // Client B's invite is still live.
+      const live = await testEnv.DB.prepare('SELECT expires_at FROM magic_links WHERE id = ?').bind(fx.B.inviteId).first<{ expires_at: number }>();
+      expect(live?.expires_at).toBeGreaterThan(Date.now());
     });
 
     it('client users never see internal files, directly or by ID', async () => {

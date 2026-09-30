@@ -23,6 +23,8 @@ How the portal protects consultants and their clients. The spec (`docs/SPEC.md` 
 
 - The cookie is `__Host-session`: HttpOnly, Secure, SameSite=Lax, Path=/, no Domain, 256-bit random. The database stores only its SHA-256.
 - Everyone can see where they're signed in, sign out one session, or **sign out everywhere**. Staff can sign out all sessions of a client user in a client they can access.
+- **Removing someone from a client** (staff, or that client's admins) ends their access at once, signs them out, and cancels their pending invites and calendar feed for that client. Signing back in by email doesn't restore it. Changing someone's role also signs them out.
+- **Archived clients** are closed to their users, file downloads and calendar feeds included. Staff keep access so they can review, export, un-archive or delete them.
 - **Invites** are single-use and expire after 72 hours. A new invite cancels older ones for the same person and client. They're rate-limited per inviter and per recipient, and a client invite gets the same answer whatever account the address already has. The inviter's name never appears in the subject line.
 - A sign-in from a browser you haven't used before sends a "new sign-in" email.
 - Sensitive settings (Turnstile, passkey policy, removing a passkey) need a sign-in or passkey check within the last 30 minutes.
