@@ -12,7 +12,7 @@ How the portal protects consultants and their clients. The spec (`docs/SPEC.md` 
 - Responses and timing are identical for known and unknown addresses. Unknown addresses get no email and leave no trace.
 - Rate limits: 5 requests/hour per email, 20/hour per IP, plus Turnstile once configured.
 
-**Passkeys (staff).** Owners and consultants can add a passkey (Face ID, Touch ID, Windows Hello, a security key). User verification is required, so a passkey is a strong factor on its own. The Owner can require passkeys for all staff (Security page).
+**Passkeys (staff).** Owners and consultants can add a passkey (Face ID, Touch ID, Windows Hello, a security key). User verification is required, so a passkey is a strong factor on its own. The Owner can require passkeys for all staff (Security page). Adding a passkey needs a sign-in or passkey check within the last 30 minutes, and emails the account, so a stolen session can't quietly add one.
 
 **Sessions.**
 
@@ -24,7 +24,7 @@ How the portal protects consultants and their clients. The spec (`docs/SPEC.md` 
 - The cookie is `__Host-session`: HttpOnly, Secure, SameSite=Lax, Path=/, no Domain, 256-bit random. The database stores only its SHA-256.
 - Everyone can see where they're signed in, sign out one session, or **sign out everywhere**. Staff can sign out all sessions of a client user in a client they can access.
 - A sign-in from a browser you haven't used before sends a "new sign-in" email.
-- Sensitive settings (Turnstile, passkey policy, removing a passkey) need a sign-in or passkey check within the last 30 minutes.
+- Sensitive actions need a sign-in or passkey check within the last 30 minutes (the list is under [Owner controls](#owner-controls)). Adding a passkey needs such a check too, and doesn't count as one.
 
 ## Claiming a fresh deployment
 
@@ -81,6 +81,7 @@ With a scanner bound, every new upload shows "Checking…" and can't be download
 - **One-click unsubscribe.** Non-essential email (activity, reminders, updates) carries a `List-Unsubscribe` header and a footer link, each tied to one person and one kind of email by a signed token. The link can only turn email off. Sign-in emails and document requests always go out.
 - **Bounces and complaints.** Delivery events from Resend are accepted only with a valid signature and a recent timestamp, and each event is applied once. A hard bounce or complaint stops non-essential email to that address until the person turns it back on from their profile.
 - **Calendar feeds** use a random 256-bit token in the URL; only its hash is stored. Anyone with the URL can read the calendar (that's how calendar apps subscribe), so feeds can be revoked, and access is re-checked on every fetch: someone removed from a client stops seeing its dates.
+- **Staff calendar feeds follow the staff rules.** Making one needs a recent sign-in or passkey check, and the passkey the Owner requires. Every fetch re-checks the passkey requirement and the IP allowlist. With an allowlist set, staff feeds load only from the allowed networks, so calendar services that fetch from their own servers (Google Calendar, Outlook.com) can't use them; a calendar app on a device on the allowed network can. Client users' feeds aren't restricted.
 
 ## Funding data
 
@@ -116,14 +117,19 @@ With a scanner bound, every new upload shows "Checking…" and can't be download
 
 Settings → Security ([`operations.md`](operations.md#security-settings)) sets the following, and the portal refuses a change that would lock out the Owner making it:
 - the staff email-domain restriction, enforced both when sign-in mail is sent and when a session starts, including passkey sign-in;
-- the staff IP allowlist, checked on every request against Cloudflare's `CF-Connecting-IP`;
+- the staff IP allowlist, checked on every request against Cloudflare's `CF-Connecting-IP`, staff calendar feeds included;
 - session lengths and sign-in link lifetime;
 - data retention.
 
 These actions need a step-up (a passkey assertion, or a sign-in within the last 30 minutes) and are audited:
-- changing security settings, roles or passkeys;
+- changing security settings, roles or passkeys, including adding a passkey to your own account;
+- inviting a consultant;
+- saving or removing the Cloudflare token, and setting the custom domain;
 - the full data export and the audit-log export;
-- hard-deleting a client.
+- hard-deleting a client;
+- revealing an EIN.
+
+Staff also need a step-up to make a calendar feed, because its URL keeps working after they sign out.
 
 ## Attacker self-review (M6)
 
@@ -136,7 +142,7 @@ We reviewed the v0.1 code as an attacker would, against the threat model in spec
 | **Brute-forcing the code** | 5 attempts per code, enforced atomically in D1. Per-IP and per-email rate limits. Optional Turnstile. | `magic-link.test.ts` |
 | **Cross-client access (IDOR)** | Client scoping in middleware on every route. Every route is listed in a generated test that calls it as each kind of actor, and calls nested routes with another client's IDs in both the path and the body. | `authz.test.ts` (every route) |
 | **Malicious upload** | Type checked by first bytes against an allowlist; HTML and SVG never accepted. Downloads as attachments, with no-sniff, a `default-src 'none'` CSP, and an optional scanner quarantine. | `files.test.ts`, `headers.test.ts` |
-| **Stolen staff session** | Configurable idle and absolute expiry, optional passkey requirement, and the IP allowlist. Step-up for sensitive actions. Revoke everywhere. | `sessions.test.ts`, `admin.test.ts` |
+| **Stolen staff session** | Configurable idle and absolute expiry, optional passkey requirement, and the IP allowlist. Step-up for sensitive actions, including adding a passkey or making a calendar feed, both of which outlive the session. A new passkey emails the account. Revoke everywhere. | `sessions.test.ts`, `admin.test.ts`, `passkeys.test.ts`, `calendar.test.ts` |
 | **Script injection** | React escaping everywhere, with no `innerHTML`. A nonce CSP with `strict-dynamic` and no `unsafe-inline`. Email templates are escaped. PDF text is escaped into 7-bit strings. CSV cells are defused against formula injection. | `http.test.ts`, `email.test.ts`, `funding.test.ts`, `admin.test.ts` |
 | **CSRF** | A double-submit token plus an Origin check on every write. Exempt only: the signed webhook and one-click unsubscribe endpoints. | `http.test.ts` |
 | **Server-side requests to attacker hosts** | Outbound calls go only to fixed hosts: Resend, the OpenGrants base URL from the committed spec (IDs are URL-encoded into one path segment), and Cloudflare's API. Listing URLs are stored if http(s), and never fetched. | code review, `funding.test.ts` |
@@ -155,6 +161,8 @@ Findings fixed during the review:
 - **Copy-link invites** (used before your sending domain is verified) sign in whoever opens them. Share them over a channel you trust. They are single-use and expire after 72 hours. They're only issued for people who don't have an account yet; existing users are added directly or emailed.
 - **Rate limits are best-effort.** KV has no atomic counter, so a burst of simultaneous requests can slightly exceed a limit. The hard limits (single-use tokens, 5 code attempts, 10 setup-code attempts) are enforced atomically in D1.
 - **Turnstile is off** until you add keys (Settings → Security). Rate limits apply either way.
+- **"Sign out everywhere" ends sessions only.** Passkeys and calendar feeds keep working. If you see a passkey or calendar link you don't recognize, remove it on Account & security first, then sign out everywhere.
+- **Staff calendar feeds and the IP allowlist.** While an allowlist is set, Google Calendar, Outlook.com and other services that fetch calendars from their own servers can't load staff feeds.
 - **New session lengths apply at the next sign-in.** Existing sessions keep the expiry they started with. To end them sooner, use "Sign out everywhere", or remove and re-add the person.
 - **The IP allowlist trusts Cloudflare's `CF-Connecting-IP`.** It protects the portal's own hostnames, which always run behind Cloudflare. It isn't a network firewall: sign-in emails are still sent, but the resulting session is refused.
 - **The audit log is never purged** (a database trigger blocks deletes). It records IDs and short labels, and the name of a hard-deleted client. Export and archive it if it grows too large for you.

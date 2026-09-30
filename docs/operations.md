@@ -2,7 +2,7 @@
 
 This is the Owner's guide to day-to-day administration. Everything here is under **Settings** in the workspace and is available to Owners only. Deploying is covered in [`deploy.md`](deploy.md) and branding in [`theming.md`](theming.md).
 
-Some actions need you to **confirm it's you** first: changing security settings, roles, or passkeys, exporting data, and deleting a client. Confirm with your passkey, or sign out and back in with an email link. Either counts for 30 minutes.
+Some actions need you to **confirm it's you** first: changing security settings, roles, or passkeys (adding one included), inviting a consultant, saving the Cloudflare token or custom domain, exporting data, and deleting a client. Staff also confirm before making a calendar link. Confirm with your passkey, or sign out and back in with an email link. Either counts for 30 minutes.
 
 ## Team
 
@@ -27,7 +27,7 @@ Invite consultants from the same page. If email isn't set up yet, choose "Give m
 |---|---|---|
 | Require passkeys for staff | Off | Add a passkey to your own account first. |
 | Allowed email domains (staff) | Any | e.g. `yourfirm.com`; subdomains included. Staff outside them get no sign-in email and can't be invited. |
-| Allowed IP addresses (staff) | Anywhere | Addresses or ranges (`203.0.113.0/24`, IPv6 too). Staff requests from elsewhere are treated as signed out. |
+| Allowed IP addresses (staff) | Anywhere | Addresses or ranges (`203.0.113.0/24`, IPv6 too). Staff requests from elsewhere are treated as signed out, and staff calendar links don't load there, so Google Calendar and Outlook.com can't use them. |
 | Staff: sign out after inactivity / sign in again at least every | 12 hours / 14 days | |
 | Clients: sign out after inactivity / sign in again at least every | 7 days / 30 days | |
 | Sign-in links and codes expire after | 15 minutes | 5–60 |
