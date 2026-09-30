@@ -88,7 +88,7 @@ export async function claimPortal(env: AppEnv, email: string, name?: string | nu
 }
 
 /**
- * Accepting an invite (DECISIONS D-027, D-079).
+ * Accepting an invite (DECISIONS D-027, D-080).
  *
  * - A copied link (`delivery = 'link'`) proves nothing about who opened it, so
  *   it may only create a brand-new account. If the address has an account by

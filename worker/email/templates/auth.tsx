@@ -63,7 +63,7 @@ export async function setupEmail(brand: EmailBrand, p: { link: string; code: str
 /**
  * The inviter's name is self-chosen free text, so it stays out of the subject
  * and the inbox preview (where it would read as the firm speaking) and appears
- * only in the body, escaped (DECISIONS D-079).
+ * only in the body, escaped (DECISIONS D-080).
  */
 export async function inviteEmail(brand: EmailBrand, p: { link: string; inviter: string | null; hours: number }): Promise<Rendered> {
   const who = p.inviter ? `${p.inviter} invited you` : 'You have been invited';

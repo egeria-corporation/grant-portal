@@ -5,7 +5,7 @@
  *
  * Client invites answer the same way whatever account the address already has
  * (none, a client user elsewhere, staff, disabled), so inviting someone can't
- * be used to look up who else uses the portal (DECISIONS D-079). A copied link
+ * be used to look up who else uses the portal (DECISIONS D-080). A copied link
  * can only ever create a new account; that is enforced when it's opened
  * (auth/signin.ts), because the account may appear between minting and use.
  */
@@ -29,7 +29,7 @@ export interface InviteResult {
 }
 
 /**
- * Invite caps (DECISIONS D-079). Per inviter, so one account can't use the
+ * Invite caps (DECISIONS D-080). Per inviter, so one account can't use the
  * firm's sending domain to mail strangers in bulk; per recipient and client, so
  * nobody gets flooded, and one client's admin can't use up another client's
  * invites to the same person.
