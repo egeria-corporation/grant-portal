@@ -10,7 +10,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { app } from '../../worker/index';
 import type { AppEnv } from '../../worker/env';
 import { newId } from '../../worker/lib/ids';
-import { addMember, Agent, agentFor, assign, claimAsOwner, createClient, createUser, resetDb, testEnv } from './helpers';
+import { addMember, Agent, agentFor, assign, call, claimAsOwner, createClient, createUser, resetDb, testEnv } from './helpers';
 
 /**
  * clientScoped*: reached through a client ID. `clientScoped` lets the
@@ -190,6 +190,32 @@ const POLICY: Record<string, Policy> = {
   'POST /api/demo-mode/session': 'public',
 };
 
+/**
+ * Routes that also need a recent step-up (spec §7.1; D-026, D-075, D-076,
+ * D-079): a passkey check or sign-in within 30 minutes. `POST
+ * /api/calendar-feeds` needs it from staff only.
+ */
+const STEP_UP = [
+  'POST /auth/passkey/register/options',
+  'POST /auth/passkey/register/verify',
+  'DELETE /api/passkeys/:id',
+  'PUT /api/settings/cloudflare-token',
+  'DELETE /api/settings/cloudflare-token',
+  'PUT /api/settings/domain',
+  'PUT /api/settings/turnstile',
+  'DELETE /api/settings/turnstile',
+  'PUT /api/settings/security',
+  'POST /api/team/invites',
+  'PATCH /api/team/:userId',
+  'DELETE /api/team/:userId',
+  'DELETE /api/team/:userId/passkeys',
+  'GET /api/audit/export',
+  'GET /api/data/export',
+  'POST /api/clients/:clientId/ein/reveal',
+  'DELETE /api/clients/:clientId',
+  'POST /api/calendar-feeds',
+];
+
 /** Concrete routes from the Hono router, minus middleware and the SPA/404 fallbacks. */
 function registeredRoutes(): string[] {
   const out = new Set<string>();
@@ -204,6 +230,10 @@ function registeredRoutes(): string[] {
 describe('route inventory', () => {
   it('every registered route has an authorization policy (and vice versa)', () => {
     expect(registeredRoutes()).toEqual(Object.keys(POLICY).sort());
+  });
+
+  it('every step-up route exists and is signed-in only', () => {
+    for (const route of STEP_UP) expect(POLICY[route] ?? 'missing', route).not.toMatch(/^(public|missing)$/);
   });
 });
 
@@ -497,6 +527,108 @@ describe('authorization per route', () => {
       expect((await admin.fetch(`/f/${fx.B.fileId}`)).status).toBe(404);
       const r = await admin.fetch(`/api/clients/${ids.clientA}/messages`, { method: 'POST', json: { body: 'x', attachments: [fx.A.internalFileId] } });
       expect(r.status).toBe(404);
+    });
+  });
+
+  describe('step-up', () => {
+    // The Owner passes every role check, so only the step-up is left to refuse a stale session.
+    for (const route of STEP_UP) {
+      it(`${route} refuses a session without a recent step-up`, async () => {
+        const [method = 'GET', path = '/'] = route.split(' ');
+        const stale = await agentFor(ids.owner, { stepUp: false });
+        const r = await stale.fetch(concrete(path, ids.clientA), { method, json: method === 'GET' ? undefined : {} });
+        expect(r.status).toBe(403);
+        expect(await r.json()).toEqual({ error: 'step_up_required' });
+      });
+    }
+  });
+
+  describe('calendar feed tokens (public GET /ics/:file)', () => {
+    // Authorized by the token alone, so the per-route loop above skips it.
+    const titles = { A: `DueA${crypto.randomUUID().slice(0, 8)}`, B: `DueB${crypto.randomUUID().slice(0, 8)}` };
+
+    beforeAll(async () => {
+      const due = Date.now() + 5 * 86_400_000;
+      const deliverable = (clientId: string, title: string) =>
+        testEnv.DB.prepare("INSERT INTO deliverables (id, client_id, title, side, status, due_at, created_at) VALUES (?, ?, ?, 'consultant', 'in_review', ?, ?)").bind(
+          newId('dlv'),
+          clientId,
+          title,
+          due,
+          Date.now(),
+        );
+      await testEnv.DB.batch([deliverable(ids.clientA, titles.A), deliverable(ids.clientB, titles.B)]);
+    });
+
+    const makeFeed = async (actor: string, clientId: string | null) => {
+      const r = await (await agentFor(actor)).post('/api/calendar-feeds', { clientId });
+      const body = (await r.json()) as { id?: string; url?: string };
+      return { status: r.status, id: body.id ?? '', path: body.url ? new URL(body.url).pathname : '' };
+    };
+    const read = async (path: string) => {
+      const r = await call(path);
+      return { status: r.status, text: await r.text() };
+    };
+
+    it("a client user's token shows only their client, and can't be made for another", async () => {
+      const feed = await makeFeed(ids.adminA, ids.clientA);
+      expect(feed.status).toBe(201);
+      const { status, text } = await read(feed.path);
+      expect(status).toBe(200);
+      expect(text).toContain(titles.A);
+      expect(text).not.toContain(titles.B);
+      expect((await makeFeed(ids.adminA, ids.clientB)).status).toBe(404);
+      expect((await makeFeed(ids.memberA, ids.clientB)).status).toBe(404);
+      expect((await makeFeed(ids.adminA, null)).status).toBe(422);
+    });
+
+    it('staff tokens carry only the clients the person can reach, re-checked on every fetch', async () => {
+      const cons = await makeFeed(ids.consA, null);
+      expect(cons.status).toBe(201);
+      const text = (await read(cons.path)).text;
+      expect(text).toContain(titles.A);
+      expect(text).not.toContain(titles.B);
+      expect((await makeFeed(ids.consA, ids.clientB)).status).toBe(404);
+      expect((await makeFeed(ids.consOther, ids.clientA)).status).toBe(404);
+
+      const owner = (await read((await makeFeed(ids.owner, null)).path)).text;
+      expect(owner).toContain(titles.A);
+      expect(owner).toContain(titles.B);
+
+      // Unassigned after the token was made: the feed empties.
+      const temp = await createUser('consultant');
+      await assign(ids.clientA, temp.id);
+      const single = await makeFeed(temp.id, ids.clientA);
+      expect((await read(single.path)).text).toContain(titles.A);
+      await testEnv.DB.prepare('DELETE FROM staff_assignments WHERE user_id = ?').bind(temp.id).run();
+      expect((await read(single.path)).text).not.toContain('VEVENT');
+    });
+
+    it('only the token owner can list or revoke it, and a revoked token is dead', async () => {
+      const feed = await makeFeed(ids.adminA, ids.clientA);
+      for (const actor of [ids.adminB, ids.memberA, ids.consA, ids.owner]) {
+        const agent = await agentFor(actor);
+        const { feeds } = (await (await agent.fetch('/api/calendar-feeds')).json()) as { feeds: { id: string }[] };
+        expect(feeds.map((f) => f.id), actor).not.toContain(feed.id);
+        expect((await agent.fetch(`/api/calendar-feeds/${feed.id}`, { method: 'DELETE' })).status, actor).toBe(404);
+      }
+      expect((await read(feed.path)).status).toBe(200);
+      const admin = await agentFor(ids.adminA);
+      expect((await admin.fetch(`/api/calendar-feeds/${feed.id}`, { method: 'DELETE' })).status).toBe(200);
+      expect((await read(feed.path)).status).toBe(404);
+      expect((await admin.fetch(`/api/calendar-feeds/${feed.id}`, { method: 'DELETE' })).status).toBe(404);
+    });
+
+    it("malformed, unknown and disabled users' tokens are not found", async () => {
+      expect((await read('/ics/nope.ics')).status).toBe(404);
+      expect((await read(`/ics/${'A'.repeat(43)}.ics`)).status).toBe(404);
+      const extra = await createUser('client_admin');
+      await addMember(ids.clientB, extra.id);
+      const feed = await makeFeed(extra.id, ids.clientB);
+      expect((await read(feed.path)).status).toBe(200);
+      expect((await read(feed.path.replace(/\.ics$/, ''))).status).toBe(404);
+      await testEnv.DB.prepare('UPDATE users SET disabled_at = ? WHERE id = ?').bind(Date.now(), extra.id).run();
+      expect((await read(feed.path)).status).toBe(404);
     });
   });
 });
