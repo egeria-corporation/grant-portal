@@ -82,7 +82,8 @@ async function lookup(env: AppEnv, idHash: string): Promise<SessionRow | null> {
     .first<SessionRow>();
 }
 
-async function passkeyGate(env: AppEnv, policy: SecurityPolicy, userId: string, kind: 'staff' | 'client'): Promise<boolean> {
+/** True when a staff user must enroll a passkey before anything else (D-029). Also applied to their calendar feeds. */
+export async function passkeyGate(env: AppEnv, policy: SecurityPolicy, userId: string, kind: 'staff' | 'client'): Promise<boolean> {
   if (kind !== 'staff') return false;
   const [user, count] = await Promise.all([
     env.DB.prepare('SELECT passkey_required FROM users WHERE id = ?').bind(userId).first<{ passkey_required: number }>(),

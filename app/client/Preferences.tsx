@@ -9,6 +9,7 @@ import { deleteJson, errorMessage, getJson, postJson, putJson } from '@/lib/api'
 import { formatDate } from '@/lib/format';
 import { useMe } from '@/lib/session';
 import { Button, Checkbox, CopyField, Field, Notice, Select } from '@/ui/controls';
+import { needsStepUp, StepUp } from '@/ui/PasskeyButton';
 
 const ZONES: string[] = (() => {
   try {
@@ -108,10 +109,13 @@ export function CalendarCard({ clients, allowAll }: { clients: { id: string; nam
   const feeds = useQuery({ queryKey: ['calendar-feeds'], queryFn: () => getJson<{ feeds: Feed[] }>('/api/calendar-feeds') });
   const [scope, setScope] = useState<string>(allowAll ? '' : (clients[0]?.id ?? ''));
   const [url, setUrl] = useState<string | null>(null);
+  const [ipRestricted, setIpRestricted] = useState(false);
+  // Staff links need a recent step-up; with a staff IP allowlist they only load from those networks (D-079).
   const create = useMutation({
-    mutationFn: () => postJson<{ url: string }>('/api/calendar-feeds', { clientId: scope || null }),
+    mutationFn: () => postJson<{ url: string; ipRestricted?: boolean }>('/api/calendar-feeds', { clientId: scope || null }),
     onSuccess: async (r) => {
       setUrl(r.url);
+      setIpRestricted(Boolean(r.ipRestricted));
       await qc.invalidateQueries({ queryKey: ['calendar-feeds'] });
     },
   });
@@ -142,9 +146,14 @@ export function CalendarCard({ clients, allowAll }: { clients: { id: string; nam
         <div className="flex flex-col gap-2">
           <CopyField value={url} label="Calendar URL" />
           <p className="t-xs text-text2">Copy it now: it won’t be shown again.</p>
+          {ipRestricted ? (
+            <p className="t-xs text-text2">
+              Your firm only allows staff access from its own networks, so this calendar only loads there. Google Calendar and Outlook.com load calendars from their own servers and can’t use it; subscribe from a calendar app on a device on your firm’s network.
+            </p>
+          ) : null}
         </div>
       ) : null}
-      {create.isError ? <Notice tone="danger">{errorMessage(create.error)}</Notice> : null}
+      {create.isError ? needsStepUp(create.error) ? <StepUp onDone={() => create.mutate()} /> : <Notice tone="danger">{errorMessage(create.error)}</Notice> : null}
       <div>
         <Button variant="secondary" loading={create.isPending} onClick={() => create.mutate()} disabled={!options.length}>
           Create a calendar link
