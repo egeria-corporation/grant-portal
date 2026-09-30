@@ -1,7 +1,7 @@
 /**
- * Team management (spec §5.9 "Team and roles", §7.3: Owner only). Changing a
- * role, removing someone or resetting their passkeys needs a recent step-up.
- * There is always at least one Owner.
+ * Team management (spec §5.9 "Team and roles", §7.3: Owner only). Inviting a
+ * consultant, changing a role, removing someone or resetting their passkeys
+ * needs a recent step-up. There is always at least one Owner.
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -55,7 +55,8 @@ export const team = new Hono<AppBindings>()
     });
   })
 
-  .post('/invites', async (c) => {
+  /** A new consultant is new staff access, so it needs a step-up like a role change (D-079). */
+  .post('/invites', requireStepUp(), async (c) => {
     const body = await parseJson(c, z.object({ email: emailField, delivery: z.enum(['email', 'link']) }));
     const out = await createInvite(c, { email: normalizeEmail(body.email), role: 'consultant', clientId: null, delivery: body.delivery });
     return c.json(out, 201);

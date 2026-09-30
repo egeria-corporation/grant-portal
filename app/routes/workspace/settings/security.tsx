@@ -181,7 +181,7 @@ function BotProtection() {
         <Card>
           <h2 className="hd text-[17px]">Cloudflare API token</h2>
           <p className="mt-1 text-text2">Saved (encrypted) for DNS records and the custom domain. Remove it once setup is done.</p>
-          {removeToken.isError ? <Notice tone="danger">{errorMessage(removeToken.error)}</Notice> : null}
+          {removeToken.isError ? needsStepUp(removeToken.error) ? <StepUp onDone={() => removeToken.mutate()} /> : <Notice tone="danger">{errorMessage(removeToken.error)}</Notice> : null}
           <Button className="mt-3" variant="danger" loading={removeToken.isPending} onClick={() => removeToken.mutate()}>
             Remove token
           </Button>

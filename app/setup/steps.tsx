@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { deleteJson, errorMessage, getJson, postJson, putJson } from '@/lib/api';
 import { BrandEditor } from '@/settings/BrandEditor';
 import { Button, CopyField, Field, Input, Notice } from '@/ui/controls';
+import { needsStepUp, StepUp } from '@/ui/PasskeyButton';
 
 export type StepResult = 'done' | 'skipped';
 export interface StepProps {
@@ -116,7 +117,7 @@ function CloudflareTokenForm({ onSaved }: { onSaved: () => void }) {
             with “Zone · DNS · Edit” and “Account · Workers Scripts · Edit”. Stored encrypted; remove it any time.
           </>
         }
-        error={save.isError ? errorMessage(save.error) : null}
+        error={save.isError && !needsStepUp(save.error) ? errorMessage(save.error) : null}
       >
         {(p) => (
           <div className="flex gap-2">
@@ -127,6 +128,7 @@ function CloudflareTokenForm({ onSaved }: { onSaved: () => void }) {
           </div>
         )}
       </Field>
+      {save.isError && needsStepUp(save.error) ? <StepUp onDone={() => save.mutate()} /> : null}
     </form>
   );
 }
@@ -296,7 +298,7 @@ export function DomainStep({ onNext }: StepProps) {
         <Field label="Portal address" hint={auto ? 'We’ll attach it with your Cloudflare token.' : undefined}>
           {(p) => <Input {...p} required placeholder="clients.yourfirm.com" value={hostname} onChange={(e) => setHostname(e.target.value)} />}
         </Field>
-        {save.isError ? <Notice tone="danger">{errorMessage(save.error)}</Notice> : null}
+        {save.isError ? needsStepUp(save.error) ? <StepUp onDone={() => save.mutate()} /> : <Notice tone="danger">{errorMessage(save.error)}</Notice> : null}
         <Button type="submit" variant="secondary" loading={save.isPending}>
           {auto ? 'Attach domain' : 'Save'}
         </Button>
@@ -435,7 +437,7 @@ export function TeamStep({ onNext }: StepProps) {
           Invite
         </Button>
       </form>
-      {invite.isError ? <Notice tone="danger">{errorMessage(invite.error)}</Notice> : null}
+      {invite.isError ? needsStepUp(invite.error) ? <StepUp onDone={() => invite.mutate()} /> : <Notice tone="danger">{errorMessage(invite.error)}</Notice> : null}
       {sent.map(({ email: to, result }) => (
         <div key={to} className="flex flex-col gap-1.5">
           <p className="flex items-center gap-1.5 text-[13px]">
