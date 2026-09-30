@@ -107,6 +107,8 @@ A copyable invite link signs in whoever opens it. For an address that already ha
 - Emailed invites to existing users are fine, because the link goes to their inbox.
 - The remaining risk is inherent to spec §3.4: whoever receives a copy link for a new account can open it. It's listed in `docs/security.md` → Known limitations.
 
+**Amended by D-079:** a copy-link invite no longer adds an existing client user directly. A copied link now only ever creates a new account, and that is checked when the link is opened.
+
 ### D-028 CSRF on every state-changing request
 Spec §7.2 asks for an Origin check plus double-submit "for form posts". The SPA makes every write with fetch, so both checks apply to every non-GET request outside `/webhooks/*` (webhooks are signature-verified in M4).
 - A missing Origin is rejected, not waved through.
@@ -500,3 +502,16 @@ Recovery from a lock-out is a documented D1 console statement (`docs/security.md
 
 ### New dependencies (M6)
 None.
+
+## Security review fixes
+
+### D-079 Invite hardening (amends D-027)
+- **Copied links only ever create an account.** Each invite records how it was delivered (`magic_links.delivery`). A copied link proves nothing about who opens it. So if the address already has an account when the link is opened (of any kind, including one created after the link was minted), the link signs nobody in and adds nothing. The opener gets `409 invite_account_exists` (audited as `invite.refused`) and is told to sign in by email and ask for an emailed invite. D-027's rule that a copy-link invite adds an existing client user directly is withdrawn: it attached accounts silently and told the inviter the address had an account.
+- **Joining another client resets the account's sessions.** An emailed invite proves control of the address. When one brings an existing account into another client, every other session of that account is revoked before the new one starts. Without this, a consultant could open a copy link for a stranger's address in their own client, keep that 30-day session, and read any client that later invites the real person. This was chosen over tracking "email verified" per account because it needs no user state. Joining another client is rare, so the cost (signing in again on other devices) is small.
+- **Client invites answer the same way for every address.** An address may have no account, a client account elsewhere, a staff account, or a disabled one. A client invite answers identically in each case (`201 {emailed, expiresAt}`, or `{emailed, link, expiresAt}`) and creates the same pending invite. Addresses that can never accept (staff, disabled) get no email. Emailed invites are sent after the response, like sign-in mail (D-022), so timing doesn't reveal it either. Failed sends still land in the email log and on the System page. The one exception is `409 already_member` for someone already in *this* client, which the inviter can see in its member list anyway. Team invites are Owner-only and keep their explicit errors.
+- **Supersede.** A new invite cancels outstanding invites for the same address and client (for team invites, the same address). Other clients' invites to that person stay valid.
+- **Rate limits** (KV, best-effort per D-020): 30 an hour and 100 a day per inviter, and 5 a day per recipient per client. The recipient limit is per client so one client's admin can't use up another client's invites to the same person.
+- **Subject line.** The inviter's name is self-chosen free text (up to 80 characters), so it's no longer in the subject or the inbox preview, which now read "You have been invited to {firm}". The name stays in the body, escaped.
+- **What remains:**
+  - A consultant can still learn whether an address has an account by opening their own copy link. That either creates an account for the address in their client (visible on its People tab) or is recorded as `invite.refused`. Minting is audited too, so it can't be done quietly.
+  - Before the sending domain is verified, an existing client user can't be added to another client, because emailed invites are blocked until then. This is deliberate.

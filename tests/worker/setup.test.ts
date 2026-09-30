@@ -213,7 +213,7 @@ async function claimOwnerDirect(): Promise<string> {
 }
 
 describe('invites never impersonate existing users', () => {
-  it('a copy-link invite for an existing client user adds them instead of minting a sign-in link', async () => {
+  it('a copy-link invite for an existing client user never signs anyone in as them, nor adds them (D-079)', async () => {
     const o = await claimOwnerDirect();
     const agent = await agentFor(o);
     const existing = await testEnv.DB.prepare(
@@ -221,14 +221,18 @@ describe('invites never impersonate existing users', () => {
     ).first<{ id: string }>();
     const res = await agent.post('/api/clients', { name: 'Second Org', contact: { email: 'ceo@client.org', delivery: 'link' } });
     const { id, invite } = await res.json<{ id: string; invite: { link?: string; added?: boolean } }>();
-    expect(invite.link).toBeUndefined();
-    expect(invite.added).toBe(true);
+    // Answered like any new address, so the response doesn't reveal the account.
+    expect(invite.added).toBeUndefined();
+    const opener = new Agent();
+    const consumed = await opener.post('/auth/link/consume', { token: new URL(invite.link ?? '').searchParams.get('t') });
+    expect(consumed.status).toBe(409);
+    expect((await opener.fetch('/api/me')).status).toBe(401);
     const member = await testEnv.DB.prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
       .bind(id, existing?.id)
       .first<{ role: string }>();
-    expect(member?.role).toBe('admin');
-    const links = await testEnv.DB.prepare("SELECT COUNT(*) AS n FROM magic_links WHERE email = 'ceo@client.org'").first<{ n: number }>();
-    expect(links?.n).toBe(0);
+    expect(member).toBeNull();
+    const sessions = await testEnv.DB.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?').bind(existing?.id).first<{ n: number }>();
+    expect(sessions?.n).toBe(0);
   });
 
   it('a copy-link team invite for an existing team member is refused', async () => {

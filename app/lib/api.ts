@@ -72,6 +72,7 @@ const MESSAGES: Record<string, string> = {
   email_domain_unverified: 'Emailing others needs a verified sending domain. Copy the invite link instead.',
   invite_conflict: 'That email already belongs to a different kind of account.',
   already_member: 'That person is already on your team.',
+  invite_account_exists: 'This address already has an account. Sign in with your email instead. To join another organization, ask for the invite to be sent by email.',
   accent_contrast: 'That color is too low-contrast for buttons. Try a darker or more saturated shade.',
   file_too_large: 'That file is too large.',
   file_type_not_allowed: 'That file type isn’t accepted here.',

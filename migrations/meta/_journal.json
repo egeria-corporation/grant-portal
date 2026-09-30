@@ -43,6 +43,13 @@
       "when": 1790520337137,
       "tag": "0005_m5_funding",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790754889233,
+      "tag": "0006_invite_delivery",
+      "breakpoints": true
     }
   ]
 }

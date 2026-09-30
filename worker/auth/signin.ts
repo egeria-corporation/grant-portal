@@ -87,13 +87,32 @@ export async function claimPortal(env: AppEnv, email: string, name?: string | nu
   return toAuthUser(owner);
 }
 
-async function acceptInvite(env: AppEnv, link: LinkRow): Promise<AuthUser> {
+/**
+ * Accepting an invite (DECISIONS D-027, D-079).
+ *
+ * - A copied link (`delivery = 'link'`) proves nothing about who opened it, so
+ *   it may only create a brand-new account. If the address has an account by
+ *   the time the link is opened, it signs nobody in and adds nothing: the
+ *   person signs in with their email and is invited by email instead.
+ * - An emailed link proves control of the address. When it brings an existing
+ *   account into another client, every other session of that account is
+ *   revoked first: one could have been opened from a copied invite by someone
+ *   else, and it must not gain the new client.
+ */
+async function acceptInvite(c: C, link: LinkRow): Promise<AuthUser> {
+  const env = c.env;
   const role = link.invite_role as Role | null;
   if (role !== 'consultant' && role !== 'client_admin' && role !== 'client_member') throw new HttpError(410, 'link_invalid');
   const kind = role === 'consultant' ? 'staff' : 'client';
+  const copied = link.delivery !== 'email';
   const now = Date.now();
+  const refuseCopied = async () => {
+    await audit(c, { actor: null, action: 'invite.refused', target: link.client_id ?? 'team', meta: { reason: 'account_exists' } });
+    return new HttpError(409, 'invite_account_exists');
+  };
 
   let user = await userByEmail(env, link.email);
+  if (user && copied) throw await refuseCopied();
   if (user?.disabled_at) throw new HttpError(410, 'link_invalid');
   if (user && user.kind !== kind) throw new HttpError(409, 'invite_conflict');
   if (!user) {
@@ -105,6 +124,9 @@ async function acceptInvite(env: AppEnv, link: LinkRow): Promise<AuthUser> {
       .run();
     user = await userByEmail(env, link.email);
     if (!user) throw new HttpError(410, 'link_invalid');
+    // Someone else's account appeared in the meantime: the same rules as above apply to it.
+    if (user.id !== id && copied) throw await refuseCopied();
+    if (user.id !== id && (user.disabled_at || user.kind !== kind)) throw new HttpError(409, 'invite_conflict');
   }
   if (kind === 'client') {
     if (!link.client_id) throw new HttpError(410, 'link_invalid');
@@ -112,9 +134,20 @@ async function acceptInvite(env: AppEnv, link: LinkRow): Promise<AuthUser> {
       .bind(link.client_id)
       .first();
     if (!exists) throw new HttpError(410, 'link_invalid');
-    await env.DB.prepare('INSERT OR IGNORE INTO client_members (client_id, user_id, role, created_at) VALUES (?, ?, ?, ?)')
-      .bind(link.client_id, user.id, role === 'client_admin' ? 'admin' : 'member', now)
-      .run();
+    // One transaction: the account's existing sessions end before it can reach the new client, never after.
+    // (A brand-new account has no sessions yet, and re-joining a client it's already in revokes nothing.)
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM client_members WHERE client_id = ? AND user_id = ?)`,
+      ).bind(now, user.id, link.client_id, user.id),
+      env.DB.prepare('INSERT OR IGNORE INTO client_members (client_id, user_id, role, created_at) VALUES (?, ?, ?, ?)').bind(
+        link.client_id,
+        user.id,
+        role === 'client_admin' ? 'admin' : 'member',
+        now,
+      ),
+    ]);
   }
   return toAuthUser(user);
 }
@@ -137,7 +170,7 @@ export async function completeLink(c: C, link: LinkRow): Promise<{ redirect: str
     user = await claimPortal(c.env, link.email);
     await audit(c, { actor: user.id, action: 'setup.claimed', target: user.id, meta: { method: 'email' } });
   } else if (link.purpose === 'invite') {
-    user = await acceptInvite(c.env, link);
+    user = await acceptInvite(c, link);
     await audit(c, { actor: user.id, action: 'invite.accepted', target: link.client_id ?? user.id });
   } else {
     const row = await userByEmail(c.env, link.email);

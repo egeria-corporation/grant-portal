@@ -96,6 +96,12 @@ export const magicLinks = sqliteTable(
     clientId: text('client_id'),
     inviteRole: text('invite_role'),
     createdBy: text('created_by'),
+    /**
+     * For invites: 'email' when the link went to the invitee's inbox, 'link'
+     * when it was handed to the inviter to pass on. Only an emailed invite
+     * proves control of the address (DECISIONS D-079).
+     */
+    delivery: text('delivery', { enum: ['email', 'link'] }),
     createdAt: createdAt(),
   },
   (t) => [

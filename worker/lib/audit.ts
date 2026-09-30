@@ -23,6 +23,7 @@ export type AuditAction =
   | 'passkey.step_up'
   | 'invite.created'
   | 'invite.accepted'
+  | 'invite.refused'
   | 'settings.updated'
   | 'client.created'
   | 'client.updated'
