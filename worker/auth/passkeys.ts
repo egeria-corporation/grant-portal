@@ -12,7 +12,7 @@ import {
 } from '@simplewebauthn/server';
 import type {
   AuthenticationResponseJSON,
-  AuthenticatorTransportFuture,
+  AuthenticatorTransport,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
 import type { AppEnv, AuthUser } from '../env';
@@ -69,8 +69,8 @@ interface PasskeyRow {
 const bytes = (v: ArrayBuffer | number[]): Uint8Array<ArrayBuffer> =>
   Array.isArray(v) ? new Uint8Array(v) : new Uint8Array(v);
 
-const parseTransports = (t: string | null): AuthenticatorTransportFuture[] | undefined =>
-  t ? (JSON.parse(t) as AuthenticatorTransportFuture[]) : undefined;
+const parseTransports = (t: string | null): AuthenticatorTransport[] | undefined =>
+  t ? (JSON.parse(t) as AuthenticatorTransport[]) : undefined;
 
 export async function registrationOptions(env: AppEnv, rp: Relying, user: AuthUser) {
   const existing = await env.DB.prepare('SELECT credential_id, transports FROM passkeys WHERE user_id = ?')
