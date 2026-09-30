@@ -1,0 +1,16 @@
+# Headers for responses served without running the Worker: /assets/* and
+# /fonts/* skip it (wrangler.jsonc run_worker_first, DECISIONS D-004). A missing
+# file there is answered with index.html (single-page-application mode), so the
+# locked-down policy below also means that page loads and runs nothing.
+# Same values as worker/lib/header-values.ts; tests/build/static-headers.test.ts
+# keeps the two in step.
+/*
+  Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=(), interest-cohort=()
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  X-Permitted-Cross-Domain-Policies: none

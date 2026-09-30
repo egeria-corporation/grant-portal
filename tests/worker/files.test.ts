@@ -213,6 +213,23 @@ describe('vault uploads', () => {
     expect((await admin.fetch(`/api/clients/${clientId}/files/${up.id}`, { method: 'PATCH', json: { folder: 'x' } })).status).toBe(404);
   });
 
+  it('renames are cleaned like uploads, so control and bidi-override characters cannot fake an extension', async () => {
+    const up = await uploadFile(owner, clientId, 'report.pdf', PDF);
+    const rename = async (filename: string) => {
+      const r = await owner.fetch(`/api/clients/${clientId}/files/${up.id}`, { method: 'PATCH', json: { filename } });
+      return ((await r.json()) as { file: { filename: string } }).file.filename;
+    };
+    const [BEL, RLO, LRI, PDI, RLM] = [0x07, 0x202e, 0x2066, 0x2069, 0x200f].map((c) => String.fromCharCode(c));
+    // A right-to-left override made "contract<RLO>xcod" + ".pdf" show as "contractfdp.docx".
+    expect(await rename(`contract${RLO}xcod`)).toBe('contractxcod.pdf');
+    // A trailing control character hid ".exe" from the extension swap: "invoice.exe<BEL>.pdf".
+    expect(await rename(`invoice.exe${BEL}`)).toBe('invoice.pdf');
+    expect(await rename(`Q1${LRI} notes${PDI}`)).toBe('Q1 notes.pdf');
+    expect(await rename(`${RLO}${RLM}`)).toBe('file.pdf');
+    const row = await testEnv.DB.prepare('SELECT filename FROM files WHERE id = ?').bind(up.id).first<{ filename: string }>();
+    expect(row?.filename).toBe('file.pdf');
+  });
+
   it('a consultant only reaches files of assigned clients', async () => {
     const up = await uploadFile(admin, clientId, 'a.pdf', PDF);
     const cons = await createUser('consultant');

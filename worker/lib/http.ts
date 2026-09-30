@@ -61,14 +61,49 @@ export function uaLabel(ua: string | null | undefined): string {
   return `${browser} on ${os}`;
 }
 
+/**
+ * Reads a request body of at most `maxBytes`. A larger Content-Length is
+ * refused before reading; without one, reading stops as soon as the body goes
+ * over, so an oversized body never lands in memory.
+ */
+export async function readBodyCapped(
+  req: Request,
+  maxBytes: number,
+  tooLarge: HttpError = new HttpError(413, 'body_too_large'),
+): Promise<Uint8Array<ArrayBuffer>> {
+  const declared = req.headers.get('Content-Length');
+  if (declared !== null && Number(declared) > maxBytes) throw tooLarge;
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (req.body) {
+    const reader = req.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel();
+        throw tooLarge;
+      }
+      chunks.push(value);
+    }
+  }
+  const out = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
 const MAX_JSON_BYTES = 64 * 1024;
 
 /** Parses and validates a JSON body. Errors are 400/413/422 with no echo of input. */
 export async function parseJson<S extends z.ZodType>(c: Context<AppBindings>, schema: S): Promise<z.infer<S>> {
   const type = c.req.header('Content-Type') ?? '';
   if (!type.toLowerCase().startsWith('application/json')) throw new HttpError(400, 'expected_json');
-  const text = await c.req.text();
-  if (text.length > MAX_JSON_BYTES) throw new HttpError(413, 'body_too_large');
+  const text = new TextDecoder().decode(await readBodyCapped(c.req.raw, MAX_JSON_BYTES));
   let raw: unknown;
   try {
     raw = text ? JSON.parse(text) : {};

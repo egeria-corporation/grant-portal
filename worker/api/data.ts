@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireOwner, requireStepUp } from '../auth/guards';
 import type { AppBindings, AppEnv } from '../env';
+import { downloadable } from '../files/scanner';
 import { audit } from '../lib/audit';
 import { HttpError } from '../lib/http';
 import { zipPath, ZipWriter } from '../lib/zip';
@@ -174,6 +175,7 @@ async function writeExport(env: AppEnv, zip: ZipWriter): Promise<void> {
       'data/*.json   one file per table, one object per row (timestamps are UTC epoch milliseconds)',
       'settings.json portal settings, without secrets',
       'files/        client documents: files/<client id>/<file id>-<filename>',
+      '              (files still being scanned, or that failed the scan, are left out)',
       'brand/        uploaded brand files',
       '',
       'Not included: sign-in sessions, sign-in links, passkeys, calendar feed tokens, API keys and',
@@ -188,14 +190,17 @@ async function writeExport(env: AppEnv, zip: ZipWriter): Promise<void> {
     .all<{ key: string; value_json: string }>();
   await zip.add('settings.json', `${JSON.stringify(Object.fromEntries(settings.results.map((s) => [s.key, stripEnc(JSON.parse(s.value_json))])), null, 2)}\n`, now);
 
-  const files = await env.DB.prepare("SELECT id, client_id, r2_key, filename, created_at FROM files WHERE upload_status = 'complete' AND deleted_at IS NULL ORDER BY client_id, created_at").all<{
+  const files = await env.DB.prepare("SELECT id, client_id, r2_key, filename, scan_status, created_at FROM files WHERE upload_status = 'complete' AND deleted_at IS NULL ORDER BY client_id, created_at").all<{
     id: string;
     client_id: string;
     r2_key: string;
     filename: string;
+    scan_status: string;
     created_at: number;
   }>();
   for (const f of files.results) {
+    // Same rule as downloads: quarantined bytes (scan pending, failed or infected) never leave R2.
+    if (!downloadable(f.scan_status)) continue;
     const obj = await env.FILES.get(f.r2_key);
     if (obj) await zip.add(zipPath('files', f.client_id, `${f.id}-${f.filename}`), obj.body, f.created_at);
   }

@@ -185,3 +185,19 @@ export function codeFrom(text: string): string {
   if (!m?.[1]) throw new Error('no code in email');
   return m[1];
 }
+
+/**
+ * A request body with no Content-Length that would run to `total` bytes.
+ * `pulled()` says how much of it the Worker actually read.
+ */
+export function endlessBody(total = 8 * 1024 * 1024, chunk = 16 * 1024) {
+  let pulled = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (pulled >= total) return controller.close();
+      pulled += chunk;
+      controller.enqueue(new Uint8Array(chunk).fill(0x20));
+    },
+  });
+  return { stream, pulled: () => pulled };
+}

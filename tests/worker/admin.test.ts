@@ -222,6 +222,26 @@ describe('data export', () => {
     expect(settings).not.toMatch(/Enc"/);
     expect(new TextDecoder().decode(zip.get(`files/${clientId}/fil_1-W-9.pdf`))).toBe('%PDF-1.4\n');
   });
+
+  it('leaves out files the scanner has not cleared, like downloads do', async () => {
+    const clientId = await createClient('Acme');
+    const statuses = ['none', 'clean', 'pending', 'infected', 'error'];
+    await testEnv.DB.batch(
+      statuses.map((s) =>
+        testEnv.DB.prepare(
+          "INSERT INTO files (id, client_id, r2_key, filename, mime, size, scan_status, upload_status, uploaded_by, created_at) VALUES (?, ?, ?, ?, 'application/pdf', 9, ?, 'complete', ?, ?)",
+        ).bind(`fil_${s}`, clientId, `clients/${clientId}/${s}`, `${s}.pdf`, s, owner.id, Date.now()),
+      ),
+    );
+    for (const s of statuses) await testEnv.FILES.put(`clients/${clientId}/${s}`, '%PDF-1.4\n');
+
+    const zip = readZip(new Uint8Array(await (await ownerAgent.fetch('/api/data/export')).arrayBuffer()));
+    const exported = [...zip.keys()].filter((n) => n.startsWith('files/')).sort();
+    expect(exported).toEqual([`files/${clientId}/fil_clean-clean.pdf`, `files/${clientId}/fil_none-none.pdf`]);
+    // The rows stay in data/files.json, with their scan status.
+    const rows = JSON.parse(new TextDecoder().decode(zip.get('data/files.json'))) as { id: string; scan_status: string }[];
+    expect(rows.map((r) => r.scan_status).sort()).toEqual([...statuses].sort());
+  });
 });
 
 describe('hard delete', () => {

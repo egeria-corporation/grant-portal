@@ -7,6 +7,7 @@ import {
   claimAsOwner,
   codeFrom,
   createUser,
+  endlessBody,
   lastEmailTo,
   resetDb,
   testEnv,
@@ -77,6 +78,14 @@ describe('magic link request', () => {
     const res = await new Agent().post('/auth/magic/request', { email: 'not-an-email<script>' });
     expect(res.status).toBe(422);
     expect(await res.text()).not.toContain('<script>');
+  });
+
+  it('stops reading a JSON body at 64 KB, even without a Content-Length', async () => {
+    const body = endlessBody();
+    const res = await new Agent().fetch('/auth/magic/request', { method: 'POST', body: body.stream, headers: { 'Content-Type': 'application/json' } });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: 'body_too_large' });
+    expect(body.pulled()).toBeLessThan(1024 * 1024);
   });
 });
 

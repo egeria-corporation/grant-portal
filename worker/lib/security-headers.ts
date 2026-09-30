@@ -3,6 +3,7 @@
  * everything else gets a locked-down `default-src 'none'` policy.
  */
 import { randomBytes, toBase64Url } from './crypto';
+import { API_CSP, COMMON_HEADERS } from './header-values';
 
 export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
@@ -40,27 +41,14 @@ export function htmlCsp({ nonce, dev = false }: CspOptions): string {
   return policy.join('; ');
 }
 
-export const API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
-
-const COMMON: Record<string, string> = {
-  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy':
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), ' +
-    'magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=(), interest-cohort=()',
-  'X-Frame-Options': 'DENY',
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Resource-Policy': 'same-origin',
-  'X-Permitted-Cross-Domain-Policies': 'none',
-};
+export { API_CSP } from './header-values';
 
 /** Headers a route may deliberately relax (public brand files set CORP cross-origin). */
 const ROUTE_OVERRIDABLE = new Set(['Cross-Origin-Resource-Policy']);
 
 /** Sets the common header set; does not overwrite a CSP (or CORP) a handler already chose. */
 export function applySecurityHeaders(headers: Headers, csp: string = API_CSP): void {
-  for (const [k, v] of Object.entries(COMMON)) {
+  for (const [k, v] of Object.entries(COMMON_HEADERS)) {
     if (ROUTE_OVERRIDABLE.has(k) && headers.has(k)) continue;
     headers.set(k, v);
   }

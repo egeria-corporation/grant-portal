@@ -12,6 +12,7 @@
     "dev": "npm run db:migrate:local && vite dev",
     "build": "vite build && node scripts/check-bundle.mjs",
     "preview": "npm run build && vite preview",
+    "predeploy": "node scripts/check-deploy.mjs",
     "deploy": "npm run db:migrate && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/d1-migrate.mjs --remote",
