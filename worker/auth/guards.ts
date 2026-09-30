@@ -81,7 +81,7 @@ const CLIENT_ID_RE = /^cli_[0-9A-HJKMNP-TV-Z]{26}$/;
  * assigned clients, or all when the Owner granted it. Client users: clients
  * they are a member of, while the client isn't archived (staff keep access to
  * archived clients so they can review, export, un-archive or delete them;
- * DECISIONS D-080). Used by requireClientAccess and by routes that find the
+ * DECISIONS D-081). Used by requireClientAccess and by routes that find the
  * client through another row (file downloads, calendar feeds).
  */
 export async function clientAccessFor(env: AppEnv, auth: AuthState, clientId: string): Promise<ClientAccess | null> {

@@ -213,7 +213,7 @@ async function claimOwnerDirect(): Promise<string> {
 }
 
 describe('invites never impersonate existing users', () => {
-  it('a copy-link invite for an existing client user never signs anyone in as them, nor adds them (D-079)', async () => {
+  it('a copy-link invite for an existing client user never signs anyone in as them, nor adds them (D-080)', async () => {
     const o = await claimOwnerDirect();
     const agent = await agentFor(o);
     const existing = await testEnv.DB.prepare(

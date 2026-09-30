@@ -99,7 +99,7 @@ export const magicLinks = sqliteTable(
     /**
      * For invites: 'email' when the link went to the invitee's inbox, 'link'
      * when it was handed to the inviter to pass on. Only an emailed invite
-     * proves control of the address (DECISIONS D-079).
+     * proves control of the address (DECISIONS D-080).
      */
     delivery: text('delivery', { enum: ['email', 'link'] }),
     createdAt: createdAt(),

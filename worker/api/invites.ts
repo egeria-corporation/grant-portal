@@ -5,7 +5,7 @@
  *
  * Client invites answer the same way whatever account the address already has
  * (none, a client user elsewhere, staff, disabled), so inviting someone can't
- * be used to look up who else uses the portal (DECISIONS D-079). A copied link
+ * be used to look up who else uses the portal (DECISIONS D-080). A copied link
  * can only ever create a new account; that is enforced when it's opened
  * (auth/signin.ts), because the account may appear between minting and use.
  */
@@ -29,7 +29,7 @@ export interface InviteResult {
 }
 
 /**
- * Invite caps (DECISIONS D-079). Per inviter, so one account can't use the
+ * Invite caps (DECISIONS D-080). Per inviter, so one account can't use the
  * firm's sending domain to mail strangers in bulk; per recipient and client, so
  * nobody gets flooded, and one client's admin can't use up another client's
  * invites to the same person.
@@ -56,7 +56,7 @@ export async function createInvite(
   const kind = p.role === 'consultant' ? 'staff' : 'client';
   if (kind === 'staff' && !staffEmailAllowed(await securityPolicy(c.env), p.email)) throw new HttpError(422, 'domain_not_allowed', { fields: ['email'] });
   if (p.clientId) {
-    // Nobody can join an archived client (D-080); only staff can reach one to try.
+    // Nobody can join an archived client (D-081); only staff can reach one to try.
     const client = await c.env.DB.prepare('SELECT archived_at FROM clients WHERE id = ?').bind(p.clientId).first<{ archived_at: number | null }>();
     if (!client) throw new HttpError(404, 'not_found');
     if (client.archived_at) throw new HttpError(409, 'client_archived');

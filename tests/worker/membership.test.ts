@@ -1,5 +1,5 @@
 /**
- * Revoking client access (DECISIONS D-080): removing a client user or changing
+ * Revoking client access (DECISIONS D-081): removing a client user or changing
  * their role, revoking pending client invites, and archived clients being
  * closed to their users. The old gap: nothing deleted a membership, so a
  * departed employee could sign back in by email and keep full access, even

@@ -1,5 +1,5 @@
 /**
- * Managing a client's users (DECISIONS D-080), shared by the workspace People
+ * Managing a client's users (DECISIONS D-081), shared by the workspace People
  * tab and the portal's Profile & team page: change someone's role, remove
  * them, and revoke pending invites. Staff, and client admins for their own
  * organization; nobody changes or removes themselves.

@@ -500,7 +500,7 @@ export const clients = new Hono<AppBindings>()
   })
 
   /**
-   * Revokes a pending invite to this client (DECISIONS D-080). Staff, or a
+   * Revokes a pending invite to this client (DECISIONS D-081). Staff, or a
    * client admin for their own org. The link stops working at once.
    */
   .delete('/:clientId/invites/:inviteId', adminOrStaff, async (c) => {
@@ -519,7 +519,7 @@ export const clients = new Hono<AppBindings>()
   })
 
   /**
-   * Changes a client user's role here (DECISIONS D-080). Staff, or a client
+   * Changes a client user's role here (DECISIONS D-081). Staff, or a client
    * admin for their own org, never on themselves. The role is read on every
    * request, so it applies at once; like a staff role change (D-076), the
    * person's sessions are also revoked so they start fresh.
@@ -541,7 +541,7 @@ export const clients = new Hono<AppBindings>()
   })
 
   /**
-   * Removes a client user from this client (DECISIONS D-080). Staff, or a
+   * Removes a client user from this client (DECISIONS D-081). Staff, or a
    * client admin for their own org, never themselves. Access ends at once
    * (membership is checked on every request), their sessions are revoked, and
    * so is anything that could bring them back or keep telling them about the

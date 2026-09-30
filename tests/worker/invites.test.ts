@@ -1,5 +1,5 @@
 /**
- * Invite hardening (DECISIONS D-079): copied links can't take over or attach
+ * Invite hardening (DECISIONS D-080): copied links can't take over or attach
  * existing accounts, joining another client resets an account's sessions,
  * responses don't reveal what account an address has, invites are rate-limited
  * and superseded, and the inviter's free-text name stays out of the subject.

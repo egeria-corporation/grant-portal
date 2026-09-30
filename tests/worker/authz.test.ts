@@ -530,7 +530,7 @@ describe('authorization per route', () => {
         const list = (await (await agent.fetch(`/api/clients/${A}/invites`)).json()) as { invites: { id: string }[] };
         expect(list.invites.map((i) => i.id)).not.toContain(fx.B.inviteId);
       }
-      // By reference in the body: inviting client B's admin into A attaches nobody (D-079), and a client
+      // By reference in the body: inviting client B's admin into A attaches nobody (D-080), and a client
       // user can't be made a consultant on A.
       const owner = await agentFor(ids.owner);
       const adminB = await testEnv.DB.prepare('SELECT email FROM users WHERE id = ?').bind(ids.adminB).first<{ email: string }>();
