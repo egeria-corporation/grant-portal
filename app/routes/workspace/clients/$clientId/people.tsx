@@ -18,7 +18,7 @@ function Invite({ clientId }: { clientId: string }) {
   const [role, setRole] = useState<'admin' | 'member'>('member');
   const [asLink, setAsLink] = useState(false);
   const invite = useMutation({
-    mutationFn: () => postJson<{ emailed: boolean; link?: string; added?: boolean }>(`/api/clients/${clientId}/invites`, { email, role, delivery: asLink ? 'link' : 'email' }),
+    mutationFn: () => postJson<{ emailed: boolean; link?: string }>(`/api/clients/${clientId}/invites`, { email, role, delivery: asLink ? 'link' : 'email' }),
     onSuccess: async () => {
       setEmail('');
       await qc.invalidateQueries({ queryKey: ['members', clientId] });
@@ -48,7 +48,6 @@ function Invite({ clientId }: { clientId: string }) {
       {invite.isError ? <Notice tone="danger">{errorMessage(invite.error)}</Notice> : null}
       {invite.data?.link ? <CopyField value={invite.data.link} label="Invite link" /> : null}
       {invite.data?.emailed ? <p role="status" className="t-sm text-ok-text">Invite sent.</p> : null}
-      {invite.data?.added ? <p role="status" className="t-sm text-ok-text">They already have an account and were added.</p> : null}
       <div>
         <Button type="submit" loading={invite.isPending}>
           Invite

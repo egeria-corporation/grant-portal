@@ -6,7 +6,9 @@
  * - Consumption is one atomic UPDATE … WHERE used_at IS NULL AND expires_at > now.
  * - Codes allow 5 attempts per request; the 5th failure invalidates the request
  *   (link included).
- * - A new request supersedes the same email's outstanding requests of that purpose.
+ * - A new request supersedes the same email's outstanding requests of that purpose
+ *   (for invites: of that purpose and client, so one client's invite never
+ *   cancels another's).
  */
 import type { AppEnv } from '../env';
 import { randomBytes, randomToken, sha256Hex, timingSafeEqual, toHex } from '../lib/crypto';
@@ -25,10 +27,12 @@ export interface LinkRow {
   client_id: string | null;
   invite_role: string | null;
   created_by: string | null;
+  /** Invites only: whether the link went to the invitee's inbox or to the inviter. */
+  delivery: 'email' | 'link' | null;
   expires_at: number;
 }
 
-const LINK_COLUMNS = 'id, email, purpose, client_id, invite_role, created_by, expires_at';
+const LINK_COLUMNS = 'id, email, purpose, client_id, invite_role, created_by, delivery, expires_at';
 
 /** Uniform 6-digit code (rejection sampling avoids modulo bias). */
 export function sixDigitCode(): string {
@@ -50,6 +54,7 @@ export async function createLink(
     createdBy?: string | null;
     ipHash?: string | null;
     uaHash?: string | null;
+    delivery?: 'email' | 'link' | null;
     supersede?: boolean;
   },
 ): Promise<{ id: string; token: string; code: string | null; expiresAt: number }> {
@@ -61,18 +66,22 @@ export async function createLink(
   const stmts: D1PreparedStatement[] = [];
   if (p.supersede) {
     stmts.push(
-      env.DB.prepare('UPDATE magic_links SET used_at = ? WHERE email = ? AND purpose = ? AND used_at IS NULL').bind(
-        now,
-        p.email,
-        p.purpose,
-      ),
+      p.purpose === 'invite'
+        ? env.DB.prepare(
+            "UPDATE magic_links SET used_at = ? WHERE email = ? AND purpose = 'invite' AND client_id IS ? AND used_at IS NULL",
+          ).bind(now, p.email, p.clientId ?? null)
+        : env.DB.prepare('UPDATE magic_links SET used_at = ? WHERE email = ? AND purpose = ? AND used_at IS NULL').bind(
+            now,
+            p.email,
+            p.purpose,
+          ),
     );
   }
   stmts.push(
     env.DB.prepare(
       `INSERT INTO magic_links (id, email, token_hash, code_hash, code_salt, attempts, expires_at, ip_hash, ua_hash,
-         purpose, client_id, invite_role, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         purpose, client_id, invite_role, created_by, delivery, created_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       id,
       p.email,
@@ -86,6 +95,7 @@ export async function createLink(
       p.clientId ?? null,
       p.inviteRole ?? null,
       p.createdBy ?? null,
+      p.delivery ?? null,
       now,
     ),
   );
