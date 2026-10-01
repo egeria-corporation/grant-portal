@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Agent, agentFor, claimAsOwner, createUser, resetDb, testEnv } from './helpers';
+import { Agent, agentFor, claimAsOwner, createUser, endlessBody, resetDb, testEnv } from './helpers';
 
 beforeEach(async () => {
   await resetDb();
@@ -140,6 +140,15 @@ describe('brand asset uploads', () => {
     big.set(PNG);
     expect((await upload(agent, 'favicon', big)).status).toBe(413);
     expect((await upload(agent, 'nope', PNG)).status).toBe(404);
+  });
+
+  it('stops reading an upload with no Content-Length once it passes the cap', async () => {
+    const agent = await owner();
+    const body = endlessBody();
+    const res = await agent.fetch('/api/settings/brand/assets/favicon', { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: body.stream });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: 'file_too_large', maxBytes: 256 * 1024 });
+    expect(body.pulled()).toBeLessThan(1024 * 1024);
   });
 
   it('an uploaded heading font is wired into theme.css when chosen', async () => {

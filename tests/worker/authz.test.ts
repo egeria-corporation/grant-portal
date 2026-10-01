@@ -6,8 +6,9 @@
  * as every kind of actor, and cross-client (IDOR) access is checked for every
  * client-scoped route.
  */
+import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { app } from '../../worker/index';
+import worker, { app } from '../../worker/index';
 import type { AppEnv } from '../../worker/env';
 import { newId } from '../../worker/lib/ids';
 import { addMember, Agent, agentFor, assign, claimAsOwner, createClient, createUser, resetDb, testEnv } from './helpers';
@@ -506,5 +507,21 @@ describe('dev-only endpoints', () => {
     const prod = { ...testEnv, APP_ENV: 'production' } as AppEnv;
     const res = await new Agent().fetch('/api/dev/outbox', { env: prod });
     expect(res.status).toBe(404);
+  });
+
+  it('a development build that reached a real deployment still keeps the outbox closed', async () => {
+    const outbox = async (url: string, env: AppEnv) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(new Request(url), env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res.status;
+    };
+    const dev = { ...testEnv, APP_ENV: 'development' } as AppEnv;
+    expect(await outbox('http://localhost:4173/api/dev/outbox', dev)).toBe(200);
+    expect(await outbox('http://127.0.0.1:5173/api/dev/outbox', dev)).toBe(200);
+    // Served on a real hostname, or with a Resend key set: a deployment, not a laptop.
+    expect(await outbox('https://portal.example.workers.dev/api/dev/outbox', dev)).toBe(404);
+    expect(await outbox('https://clients.example.com/api/dev/outbox', dev)).toBe(404);
+    expect(await outbox('http://localhost:4173/api/dev/outbox', { ...dev, RESEND_API_KEY: 're_live_key' })).toBe(404);
   });
 });

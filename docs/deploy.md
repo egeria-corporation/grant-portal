@@ -10,7 +10,7 @@ The full timed walkthrough lands with M6. This page covers what exists today and
 | Setup page fields `RESEND_API_KEY`, `SESSION_SECRET`, `OPENGRANTS_API_KEY` | `.dev.vars.example`, help text from `package.json → cloudflare.bindings` |
 | Creates D1 (`DB`), R2 (`FILES`), KV (`KV`), Queue (`JOBS`) | `wrangler.jsonc` (no account IDs, so they are provisioned for you) |
 | Build command `npm run build` | `package.json → scripts.build` (needs no secrets) |
-| Deploy command `npm run deploy` = `npm run db:migrate && wrangler deploy` | `package.json → scripts.deploy` |
+| Deploy command `npm run deploy` = `npm run db:migrate && wrangler deploy` | `package.json → scripts.deploy`. npm first runs `predeploy` (`scripts/check-deploy.mjs`), which refuses a build made for development, such as the one `npm run test:e2e` leaves in `dist/`. |
 | Migrations | `scripts/d1-migrate.mjs --remote` applies `migrations/` to the `DB` binding; it creates the database first if it does not exist yet (plain CLI deploys) |
 | Cron triggers `*/15 * * * *`, `0 13 * * *` | `wrangler.jsonc → triggers` |
 

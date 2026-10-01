@@ -36,9 +36,9 @@ The first person to finish step 1 of the wizard becomes the Owner, and the step 
 ## Web baseline
 
 - **CSP.** Strict and nonce-based. No inline scripts, `frame-ancestors 'none'`, and a fresh nonce on every page.
-- **Headers.** HSTS (preload-ready), `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a minimal `Permissions-Policy`, COOP/CORP.
+- **Headers.** HSTS (preload-ready), `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a minimal `Permissions-Policy`, COOP/CORP. Built files served straight from Cloudflare's edge (`/assets`, `/fonts`) get the same set from `public/_headers`, with a CSP that lets nothing run.
 - **CSRF.** Every state-changing request needs an exact `Origin` match *and* a double-submit token (`__Host-csrf` cookie echoed in `X-CSRF-Token`).
-- **Input.** Every endpoint validates its body with Zod (64 KB cap). Errors never echo input back.
+- **Input.** Every endpoint validates its body with Zod (64 KB cap). Bodies are read no further than their cap, even without a `Content-Length`. Errors never echo input back.
 - **Authorization.** Middleware on every route decides who may call it. A generated test lists every route in the app and fails if any route lacks a policy. It calls each route as every kind of user and checks cross-client (IDOR) access on client-scoped routes. Client IDs you can't access answer 404, not 403, so they can't be probed.
 
 ## Brand files
@@ -51,7 +51,7 @@ The first person to finish step 1 of the wizard becomes the Owner, and the step 
 ## Client files
 
 - **Stored privately.** Files live in R2 under random keys (`clients/{client}/{uuid}`). The filename is kept in the database only. There's no public bucket access; every download goes through the portal, which checks the viewer can reach that client.
-- **Checked on the way in.** Only documents, spreadsheets, PDFs and images are accepted by default (up to 100 MB). The first bytes must match the file's extension, and the stored type comes from the portal's own table, not the browser. HTML, SVG, scripts and programs are never accepted.
+- **Checked on the way in.** File names lose path parts and invisible control and direction-override characters, on upload and on rename, so a name can't fake its extension. Only documents, spreadsheets, PDFs and images are accepted by default (up to 100 MB). The first bytes must match the file's extension, and the stored type comes from the portal's own table, not the browser. HTML, SVG, scripts and programs are never accepted.
 - **Served safely.** Files download as attachments with a strict type and `nosniff`. Only PDFs and images can be previewed in the browser, under a Content-Security-Policy that lets nothing else load or run. Every download is recorded in the audit log.
 - **Checksums.** A SHA-256 is computed by the server for every file and sent back with downloads.
 - **Internal files.** Staff can keep a file internal; client users can't list, attach or download it.
@@ -65,7 +65,7 @@ No malware scanner ships with the portal. To add one, deploy a scanning Worker (
 "services": [{ "binding": "SCANNER", "service": "your-scanner-worker" }]
 ```
 
-With a scanner bound, every new upload shows "Checking…" and can't be downloaded until the scan comes back clean. The portal POSTs the file's bytes to `https://scanner/scan` (headers `X-File-Id`, `X-File-Name`, `Content-Type`) and expects `{"status":"clean"}` or `{"status":"infected"}`. Anything else counts as an error, and the file stays quarantined; the job retries.
+With a scanner bound, every new upload shows "Checking…" and can't be downloaded, or included in the data export, until the scan comes back clean. The portal POSTs the file's bytes to `https://scanner/scan` (headers `X-File-Id`, `X-File-Name`, `Content-Type`) and expects `{"status":"clean"}` or `{"status":"infected"}`. Anything else counts as an error, and the file stays quarantined; the job retries.
 
 ## Client data
 

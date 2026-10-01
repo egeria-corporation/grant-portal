@@ -3,14 +3,15 @@ import { Hono } from 'hono';
 import { applyDeliveryEvent, webhookSecret } from '../email/delivery';
 import { parseDeliveryEvent, verifySvix } from '../email/webhook';
 import type { AppBindings } from '../env';
+import { readBodyCapped } from '../lib/http';
 
 const MAX_BODY = 256 * 1024;
 
 export const webhooks = new Hono<AppBindings>().post('/resend', async (c) => {
   const secret = await webhookSecret(c.env);
   if (!secret) return c.json({ error: 'not_found' }, 404);
-  const body = await c.req.text();
-  if (body.length > MAX_BODY) return c.json({ error: 'body_too_large' }, 413);
+  // Unauthenticated until the signature checks out: never read more than the cap.
+  const body = new TextDecoder().decode(await readBodyCapped(c.req.raw, MAX_BODY));
   const id = c.req.header('svix-id') ?? null;
   const ok = await verifySvix(secret, { id, timestamp: c.req.header('svix-timestamp') ?? null, signature: c.req.header('svix-signature') ?? null }, body);
   if (!ok || !id) return c.json({ error: 'invalid_signature' }, 401);

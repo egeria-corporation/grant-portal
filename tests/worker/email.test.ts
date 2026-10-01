@@ -11,7 +11,7 @@ import { signSvix } from '../../worker/email/webhook';
 import { dispatch } from '../../worker/jobs/dispatch';
 import { runJob } from '../../worker/jobs';
 import { sendDigest, sendNotification } from '../../worker/notify';
-import { addMember, Agent, agentFor, assign, call, claimAsOwner, createClient, createUser, resetDb, testEnv, type Agent as AgentT } from './helpers';
+import { addMember, Agent, agentFor, assign, call, claimAsOwner, createClient, createUser, endlessBody, resetDb, testEnv, type Agent as AgentT } from './helpers';
 
 const DAY = 86_400_000;
 
@@ -251,6 +251,17 @@ describe('delivery webhook', () => {
     // Delivery shows on the client's timeline.
     const events = await testEnv.DB.prepare("SELECT type FROM events WHERE client_id = ? AND type LIKE 'email.%'").bind(clientId).all<{ type: string }>();
     expect(events.results.map((e) => e.type)).toEqual(expect.arrayContaining(['email.delivered']));
+  });
+});
+
+describe('delivery webhook body limit', () => {
+  it('stops reading an unsigned body at 256 KB, even without a Content-Length', async () => {
+    await ensureWebhook(testEnv, 'https://portal.test');
+    const body = endlessBody();
+    const res = await new Agent().fetch('/webhooks/resend', { method: 'POST', body: body.stream, csrf: false });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: 'body_too_large' });
+    expect(body.pulled()).toBeLessThan(1024 * 1024);
   });
 });
 

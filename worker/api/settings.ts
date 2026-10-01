@@ -19,7 +19,7 @@ import type { AppBindings, AppEnv } from '../env';
 import { CloudflareApi, CloudflareApiError, workerNameFromHost } from '../integrations/cloudflare';
 import { audit } from '../lib/audit';
 import { parseCidr } from '../lib/cidr';
-import { clientIp, HttpError, parseJson, publicOrigin } from '../lib/http';
+import { clientIp, HttpError, parseJson, publicOrigin, readBodyCapped } from '../lib/http';
 import { securityPolicy, staffEmailAllowed, staffIpAllowed } from '../lib/security';
 import {
   decryptSecretSetting,
@@ -151,9 +151,9 @@ export const settingsApi = new Hono<AppBindings>()
   .put('/brand/assets/:slot', async (c) => {
     const slot = c.req.param('slot');
     if (!isSlot(slot)) throw new HttpError(404, 'not_found');
-    const declared = Number(c.req.header('Content-Length') ?? '0');
-    if (declared > SLOT_RULES[slot].maxBytes) throw new HttpError(413, 'file_too_large', { maxBytes: SLOT_RULES[slot].maxBytes });
-    const out = await storeAsset(c.env, slot, await c.req.arrayBuffer());
+    const { maxBytes } = SLOT_RULES[slot];
+    const bytes = await readBodyCapped(c.req.raw, maxBytes, new HttpError(413, 'file_too_large', { maxBytes }));
+    const out = await storeAsset(c.env, slot, bytes.buffer);
     await audit(c, { action: 'settings.updated', target: `brand.asset.${slot}`, meta: { mime: out.mime, size: out.size } });
     const state = await getBrandState(c.env);
     return c.json({ ok: true, url: assetUrl(state, slot), version: state.version }, 201);

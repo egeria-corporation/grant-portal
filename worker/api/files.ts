@@ -11,7 +11,7 @@ import { accessOf, authOf, requireClientAccess, type ClientAccess } from '../aut
 import type { AppBindings, AppEnv } from '../env';
 import { eventStmts } from '../lib/events';
 import { HttpError, parseJson } from '../lib/http';
-import { acceptedExtensions } from '../files/policy';
+import { acceptedExtensions, cleanFilename } from '../files/policy';
 import {
   abortUpload,
   beginUpload,
@@ -186,9 +186,10 @@ export const vault = new Hono<AppBindings>()
     return c.json({ ok: true });
   });
 
+/** Cleaned like an uploaded name (no control or bidi-override characters), so a rename can't fake an extension. */
 function keepExtension(next: string, current: string): string {
   const ext = /\.[A-Za-z0-9]{1,8}$/.exec(current)?.[0] ?? '';
-  const base = next.replace(/\.[A-Za-z0-9]{1,8}$/, '').replace(/[\\/]/g, '').trim();
+  const base = cleanFilename(next.replace(/[\\/]/g, '')).replace(/\.[A-Za-z0-9]{1,8}$/, '').trim();
   return `${base || 'file'}${ext}`;
 }
 

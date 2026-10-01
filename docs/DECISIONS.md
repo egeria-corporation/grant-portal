@@ -22,6 +22,8 @@ The key material stays in KV and never goes into D1, so a D1 export or backup al
 ### D-004 `run_worker_first` covers HTML navigations
 The prompt lists `/api/*`, `/auth/*`, `/f/*`, `/brand/*`, `/webhooks/*`. A strict **nonce** CSP (spec §7.2) needs a fresh nonce per HTML response, and static-asset serving can't provide one. So `run_worker_first` is `["/*", "!/assets/*", "!/fonts/*"]`, a superset of the requested list. Hashed build assets are still served directly from the edge. Only navigations and dynamic routes hit the Worker. For those, it fetches `index.html` from `ASSETS`, sets the nonce on every `script`/`style`/`link` tag with `HTMLRewriter`, sends `Cache-Control: no-store`, and adds the full header set.
 
+The Worker never sees `/assets/*` and `/fonts/*`, so it can't add headers there. That includes the `index.html` that single-page-application mode returns for a missing file under those paths, which would otherwise go out with no CSP, `frame-ancestors`, HSTS or `nosniff`. `public/_headers` gives every static response the Worker's non-HTML set (`worker/lib/header-values.ts`), including `default-src 'none'`, so that fallback page loads and runs nothing. `tests/build/static-headers.test.ts` keeps the file and the Worker in step. For pages the Worker serves, its own nonce CSP replaces the static one.
+
 ### D-005 CSP shape
 HTML: `default-src 'self'; script-src 'nonce-…' 'strict-dynamic'; style-src 'self' 'nonce-…'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests`. JSON and other non-HTML responses: `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`. React style props go through CSSOM, which CSP does not block, so `'unsafe-inline'` is never needed. Vite's `html.cspNonce` placeholder puts a `<meta property="csp-nonce">` in the page, which Vite's runtime uses for the style and preload tags it injects.
 
@@ -137,7 +139,11 @@ Spec §3.4 says team members sign in "via the setup code or a verified domain". 
 With a Cloudflare API token, `PUT /accounts/:id/workers/domains` attaches the hostname. The Worker's service name is inferred from its `*.workers.dev` hostname and can be overridden; the account and zone come from the zone lookup. Without a token the wizard records the hostname and shows the dashboard steps. The token and the OpenGrants key are stored AES-GCM encrypted (`settings:<key>` as AAD), never returned by the API.
 
 ### D-033 E2E harness
-Playwright runs `vite preview` with `PORTAL_E2E=1`. That uses a separate persisted state directory (`.wrangler/e2e-state`, deleted before each run), so every run is a fresh, unclaimed deploy. It also sets `APP_ENV=development`, so emails go to the local outbox, which the test reads at `GET /api/dev/outbox`. That endpoint checks `APP_ENV` explicitly rather than Vite's `DEV` flag, so no production build can expose it; a test pins this. `PLAYWRIGHT_CHROMIUM_PATH` optionally points at a preinstalled Chromium.
+Playwright runs `vite preview` with `PORTAL_E2E=1`. That uses a separate persisted state directory (`.wrangler/e2e-state`, deleted before each run), so every run is a fresh, unclaimed deploy. It also sets `APP_ENV=development`, so emails go to the local outbox, which the test reads at `GET /api/dev/outbox`. That endpoint checks `APP_ENV` explicitly rather than Vite's `DEV` flag, so no production build can expose it; a test pins this.
+
+The E2E build is still a build: it leaves `dist/` configured with `APP_ENV=development`, and `wrangler deploy` uploads whatever `dist/` holds. So:
+- `npm run deploy` first runs `predeploy` (`scripts/check-deploy.mjs`). It refuses unless the config wrangler will upload says `APP_ENV=production`, or when there's no build at all. The Deploy button runs `npm run build` first, so it passes. `deploy` itself stays `npm run db:migrate && wrangler deploy`, as spec §3.2 has it.
+- The outbox also answers only on a host no deployment can have (loopback, `*.localhost`, `*.test`) and only with no `RESEND_API_KEY`. A development build that reached a real deployment still doesn't hand out sign-in links. `PLAYWRIGHT_CHROMIUM_PATH` optionally points at a preinstalled Chromium.
 
 ### New dependencies (M1)
 `@simplewebauthn/server` and `@simplewebauthn/browser` (spec §4 stack) for passkeys. Nothing else.
@@ -239,6 +245,8 @@ Spec §6.3 asks for resumable uploads via R2 multipart, and §7.4 rules out publ
 Only the uploader can continue or cancel an upload. Uploads abandoned for 7 days are aborted by the daily cron.
 
 ### D-046 What may be uploaded
+Display names drop path parts and control and bidi-override characters, so a name can't disguise its real extension. Staff renames go through the same cleaner, and keep the stored extension.
+
 The extension picks a family: PDF, documents, spreadsheets, presentations, images, or archives (archives are off by default). The first bytes must match that family's signature (`%PDF-`, PNG, JPEG, GIF, WebP, HEIC, ZIP/OOXML, OLE, RTF), or be clean UTF-8 text with no markup-looking start for `.txt`, `.md` and `.csv`. The stored `Content-Type` comes from the server's table, never from the browser. HTML, SVG, scripts and executables are never accepted into a vault.
 
 The size limit defaults to 100 MB (spec §7.4). Both limits live in the `files` setting (Owner UI in M6).
@@ -308,6 +316,8 @@ Resend signs webhooks with Svix. The portal verifies the HMAC over `id.timestamp
 A hard bounce (anything but `Temporary`), a complaint or a Resend suppression sets `users.email_suppressed_at`. Suppressed addresses still get sign-in email and document requests. Everything else is recorded as `suppressed` and not sent, until the person turns email back on in their profile.
 
 The webhook is registered through Resend's API when the sending domain verifies (or from System), and its signing secret is stored encrypted. There's no fourth secret (D-002).
+
+The endpoint is public until the signature checks out, so it reads at most 256 KB of body. A larger `Content-Length` is refused before reading, and a body without one stops being read once it passes the cap. JSON bodies (64 KB) and brand uploads (the slot's cap) are read the same way (`readBodyCapped`).
 
 ### D-059 Notification categories and preferences
 - **Transactional (document requests):** always sent, per spec §9.
@@ -471,6 +481,7 @@ Recovery from a lock-out is a documented D1 console statement (`docs/security.md
 
 **Export:** a streamed, stored (uncompressed) ZIP with data descriptors, so files stream from R2 without buffering.
 - It contains one JSON file per table, settings with every `*Enc` field stripped, all live files, and brand assets.
+- Files the scanner hasn't cleared (scan pending, failed or infected) are left out, by the same rule as downloads (D-048). Their rows stay in `files.json`.
 - It excludes sessions, sign-in links, passkeys, WebAuthn challenges, device cookies, calendar-feed tokens, notifications, job bookkeeping and `ein_enc` (EINs go out as the last four digits).
 - Plain ZIP, not ZIP64: the writer fails rather than produce a broken archive over 4 GiB or 65,535 entries.
 
