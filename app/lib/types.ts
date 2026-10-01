@@ -168,6 +168,13 @@ export interface Member {
   activeSessions?: number;
 }
 
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: 'admin' | 'member';
+  expiresAt: number;
+}
+
 // ---------------------------------------------------------------------------
 // Funding (M5)
 // ---------------------------------------------------------------------------

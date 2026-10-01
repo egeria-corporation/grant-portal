@@ -60,16 +60,21 @@ export async function setupEmail(brand: EmailBrand, p: { link: string; code: str
   return { subject, text, html };
 }
 
+/**
+ * The inviter's name is self-chosen free text, so it stays out of the subject
+ * and the inbox preview (where it would read as the firm speaking) and appears
+ * only in the body, escaped (DECISIONS D-080).
+ */
 export async function inviteEmail(brand: EmailBrand, p: { link: string; inviter: string | null; hours: number }): Promise<Rendered> {
   const who = p.inviter ? `${p.inviter} invited you` : 'You have been invited';
-  const subject = `${who} to ${brand.firm}`;
+  const subject = `You have been invited to ${brand.firm}`;
   const text = [
     `${who} to ${brand.firm}. There is no password to set up: this link signs you in.`,
     `Open ${brand.firm}:\n${p.link}`,
     `The link works once and expires in ${p.hours} hours. After that, sign in with your email address.`,
   ].join('\n\n');
   const html = await renderHtml(
-    <Layout brand={brand} preview={`${who} to ${brand.firm}`}>
+    <Layout brand={brand} preview={subject}>
       <H brand={brand}>{who}</H>
       <P brand={brand}>There’s no password to set up: this button signs you in to {brand.firm}.</P>
       <Cta brand={brand} href={p.link}>

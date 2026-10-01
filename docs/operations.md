@@ -71,7 +71,14 @@ The ZIP must stay under 4 GB. If your files add up to more, contact the maintain
 
 The deletion itself is recorded in the audit log, with the client's name. It can't be undone, so export first if you might need anything.
 
-Archiving (the client's status) is the reversible alternative.
+Archiving (the client's status) is the reversible alternative. An archived client's portal users can't reach it until you set it back to active; you and your consultants still can.
+
+## Client users
+
+Each client's **People** tab lists its portal users and pending invites. Staff can change someone's role (Admin or Member), **Remove** them, or **Revoke** an invite that hasn't been accepted yet. The client's own admins can do the same from their Profile & team page, except to themselves.
+
+- Removing someone ends their access to that client at once and signs them out. Their pending invites and calendar feed for that client stop working. Their account stays, so they keep any other clients they belong to.
+- Changing someone's role signs them out, so their next sign-in picks up the new role.
 
 ## Retention
 

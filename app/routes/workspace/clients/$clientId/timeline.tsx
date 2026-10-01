@@ -37,6 +37,12 @@ export function describe(e: Event): string {
       return 'changed the assigned consultants';
     case 'member.invited':
       return `invited a ${s(p.role) || 'new'} user`;
+    case 'member.invite_revoked':
+      return 'revoked an invite';
+    case 'member.role_changed':
+      return `changed a user’s role to ${s(p.to)}`;
+    case 'member.removed':
+      return `removed a${p.role === 'admin' ? 'n' : ''} ${s(p.role) || 'client'} user`;
     case 'member.signed_in':
       return 'signed in';
     case 'file.uploaded':

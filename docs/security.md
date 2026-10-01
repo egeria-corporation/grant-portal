@@ -23,6 +23,9 @@ How the portal protects consultants and their clients. The spec (`docs/SPEC.md` 
 
 - The cookie is `__Host-session`: HttpOnly, Secure, SameSite=Lax, Path=/, no Domain, 256-bit random. The database stores only its SHA-256.
 - Everyone can see where they're signed in, sign out one session, or **sign out everywhere**. Staff can sign out all sessions of a client user in a client they can access.
+- **Removing someone from a client** (staff, or that client's admins) ends their access at once, signs them out, and cancels their pending invites and calendar feed for that client. Signing back in by email doesn't restore it. Changing someone's role also signs them out.
+- **Archived clients** are closed to their users, file downloads and calendar feeds included. Staff keep access so they can review, export, un-archive or delete them.
+- **Invites** are single-use and expire after 72 hours. A new invite cancels older ones for the same person and client. They're rate-limited per inviter and per recipient, and a client invite gets the same answer whatever account the address already has. The inviter's name never appears in the subject line.
 - A sign-in from a browser you haven't used before sends a "new sign-in" email.
 - Sensitive settings (Turnstile, passkey policy, removing a passkey) need a sign-in or passkey check within the last 30 minutes.
 
@@ -152,7 +155,7 @@ Findings fixed during the review:
 
 ## Known limitations
 
-- **Copy-link invites** (used before your sending domain is verified) sign in whoever opens them. Share them over a channel you trust. They are single-use and expire after 72 hours. They're only issued for people who don't have an account yet; existing users are added directly or emailed.
+- **Copy-link invites** (used before your sending domain is verified) sign in whoever opens them. Share them over a channel you trust. They are single-use and expire after 72 hours. They only ever create a new account: if the address already has one when the link is opened, the link signs nobody in and adds nothing, and the person needs an emailed invite instead. When an emailed invite brings an existing account into another client, that account's other sessions are signed out, so a session opened from someone else's copy link can't follow it in.
 - **Rate limits are best-effort.** KV has no atomic counter, so a burst of simultaneous requests can slightly exceed a limit. The hard limits (single-use tokens, 5 code attempts, 10 setup-code attempts) are enforced atomically in D1.
 - **Turnstile is off** until you add keys (Settings → Security). Rate limits apply either way.
 - **New session lengths apply at the next sign-in.** Existing sessions keep the expiry they started with. To end them sooner, use "Sign out everywhere", or remove and re-add the person.

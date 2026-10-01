@@ -400,7 +400,6 @@ export function OpenGrantsStep({ onNext }: StepProps) {
 interface InviteResult {
   emailed: boolean;
   link?: string;
-  added?: boolean;
 }
 
 export function TeamStep({ onNext }: StepProps) {
@@ -485,8 +484,6 @@ export function ClientStep({ onNext }: StepProps) {
             </>
           ) : create.data.invite?.emailed ? (
             <p className="text-[13px] text-text2">We emailed an invite to {contact}.</p>
-          ) : create.data.invite?.added ? (
-            <p className="text-[13px] text-text2">{contact} already has an account and was added. They sign in with their email as usual.</p>
           ) : null}
         </div>
       ) : (

@@ -1,4 +1,4 @@
-/** Client users, invites, session revocation, and (Owner) consultant assignments. */
+/** Client users (roles, removal, session revocation), invites, and (Owner) consultant assignments. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -7,7 +7,8 @@ import { formatDate } from '@/lib/format';
 import { useMe } from '@/lib/session';
 import type { Member } from '@/lib/types';
 import { Button, Checkbox, CopyField, Field, Input, Notice, Select } from '@/ui/controls';
-import { Avatar, Pill } from '@/ui/display';
+import { Avatar } from '@/ui/display';
+import { MemberActionError, MemberControls, PendingInvites, useMemberActions } from '@/client/Members';
 import { useStaffClient } from './route';
 
 export const Route = createFileRoute('/workspace/clients/$clientId/people')({ component: People });
@@ -18,10 +19,10 @@ function Invite({ clientId }: { clientId: string }) {
   const [role, setRole] = useState<'admin' | 'member'>('member');
   const [asLink, setAsLink] = useState(false);
   const invite = useMutation({
-    mutationFn: () => postJson<{ emailed: boolean; link?: string; added?: boolean }>(`/api/clients/${clientId}/invites`, { email, role, delivery: asLink ? 'link' : 'email' }),
+    mutationFn: () => postJson<{ emailed: boolean; link?: string }>(`/api/clients/${clientId}/invites`, { email, role, delivery: asLink ? 'link' : 'email' }),
     onSuccess: async () => {
       setEmail('');
-      await qc.invalidateQueries({ queryKey: ['members', clientId] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['members', clientId] }), qc.invalidateQueries({ queryKey: ['invites', clientId] })]);
     },
   });
   return (
@@ -48,7 +49,6 @@ function Invite({ clientId }: { clientId: string }) {
       {invite.isError ? <Notice tone="danger">{errorMessage(invite.error)}</Notice> : null}
       {invite.data?.link ? <CopyField value={invite.data.link} label="Invite link" /> : null}
       {invite.data?.emailed ? <p role="status" className="t-sm text-ok-text">Invite sent.</p> : null}
-      {invite.data?.added ? <p role="status" className="t-sm text-ok-text">They already have an account and were added.</p> : null}
       <div>
         <Button type="submit" loading={invite.isPending}>
           Invite
@@ -118,6 +118,7 @@ function People() {
     mutationFn: (userId: string) => postJson<{ revoked: number }>(`/api/clients/${clientId}/members/${userId}/revoke-sessions`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members', clientId] }),
   });
+  const act = useMemberActions(clientId);
   return (
     <>
       <section className="card overflow-hidden" aria-labelledby="people-h">
@@ -134,7 +135,7 @@ function People() {
                   {m.email} · joined {formatDate(m.joinedAt)}
                 </span>
               </div>
-              <Pill>{m.role === 'admin' ? 'Admin' : 'Member'}</Pill>
+              <MemberControls member={m} self={false} act={act} />
               <span className="t-xs text-text2">{m.activeSessions ?? 0} active session{m.activeSessions === 1 ? '' : 's'}</span>
               <Button variant="ghost" size="sm" disabled={!m.activeSessions} loading={revoke.isPending && revoke.variables === m.id} onClick={() => revoke.mutate(m.id)}>
                 Sign out everywhere
@@ -148,7 +149,9 @@ function People() {
             <Notice tone="danger">{errorMessage(revoke.error)}</Notice>
           </div>
         ) : null}
+        <MemberActionError act={act} />
       </section>
+      <PendingInvites clientId={clientId} act={act} />
       <Invite clientId={clientId} />
       {me.data?.user.role === 'owner' ? <Assignments clientId={clientId} /> : null}
     </>
