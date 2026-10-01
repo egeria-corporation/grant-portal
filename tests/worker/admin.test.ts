@@ -141,6 +141,35 @@ describe('Team', () => {
   });
 });
 
+describe('Owner setup actions need a step-up', () => {
+  it('inviting a consultant, the Cloudflare token and the domain refuse a stale session, and work after a fresh sign-in', async () => {
+    const stale = await agentFor(owner.id, { stepUp: false });
+    const actions: [string, string, unknown][] = [
+      ['POST', '/api/team/invites', { email: 'new@example.org', delivery: 'link' }],
+      ['PUT', '/api/settings/cloudflare-token', { token: 'x'.repeat(40) }],
+      ['DELETE', '/api/settings/cloudflare-token', undefined],
+      ['PUT', '/api/settings/domain', { hostname: 'clients.example.org' }],
+    ];
+    for (const [method, path, json] of actions) {
+      const r = await stale.fetch(path, { method, json });
+      expect(r.status, `${method} ${path}`).toBe(403);
+      expect(await r.json()).toEqual({ error: 'step_up_required' });
+    }
+    const none = await testEnv.DB.prepare("SELECT COUNT(*) AS n FROM magic_links WHERE purpose = 'invite'").first<{ n: number }>();
+    expect(none?.n).toBe(0);
+
+    // A sign-in link counts as the step-up (so the wizard, right after claiming, isn't interrupted).
+    const { token } = await createLink(testEnv, { email: owner.email, purpose: 'signin', ttlMs: 60_000, withCode: false });
+    const fresh = new Agent();
+    expect((await fresh.post('/auth/link/consume', { token })).status).toBe(200);
+    expect((await fresh.post('/api/team/invites', { email: 'new@example.org', delivery: 'link' })).status).toBe(201);
+    // No token saved, so the domain is recorded for manual setup (no call to Cloudflare).
+    const domain = await fresh.fetch('/api/settings/domain', { method: 'PUT', json: { hostname: 'clients.example.org' } });
+    expect(await domain.json()).toMatchObject({ domain: { hostname: 'clients.example.org', status: 'manual' } });
+    expect((await fresh.fetch('/api/settings/cloudflare-token', { method: 'DELETE' })).status).toBe(200);
+  });
+});
+
 describe('audit log', () => {
   it('lists and filters by action family; CSV export needs a step-up and defuses formulas', async () => {
     // The audit log is append-only, so earlier tests' entries are still there.

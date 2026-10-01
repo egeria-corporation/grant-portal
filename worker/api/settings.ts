@@ -272,7 +272,9 @@ export const settingsApi = new Hono<AppBindings>()
     }
   })
 
-  .put('/cloudflare-token', async (c) => {
+  // The Cloudflare token can edit DNS and attach hostnames to this Worker, so
+  // saving or removing it, and moving the portal's domain, need a step-up (D-079).
+  .put('/cloudflare-token', requireStepUp(), async (c) => {
     const body = await parseJson(c, z.object({ token: z.string().trim().min(20).max(200) }));
     if (!(await new CloudflareApi(body.token).verifyToken())) throw new HttpError(422, 'token_invalid');
     await setSetting(c.env, 'cloudflare', {
@@ -283,7 +285,7 @@ export const settingsApi = new Hono<AppBindings>()
     return c.json({ ok: true });
   })
 
-  .delete('/cloudflare-token', async (c) => {
+  .delete('/cloudflare-token', requireStepUp(), async (c) => {
     await deleteSetting(c.env, 'cloudflare');
     await audit(c, { action: 'settings.updated', target: 'cloudflare_token.removed' });
     return c.json({ ok: true });
@@ -293,7 +295,7 @@ export const settingsApi = new Hono<AppBindings>()
    * Custom domain (spec §3.3 step 4). With a Cloudflare token it's attached
    * automatically; without one, it's recorded and the wizard shows the steps.
    */
-  .put('/domain', async (c) => {
+  .put('/domain', requireStepUp(), async (c) => {
     const body = await parseJson(c, z.object({ hostname, service: z.string().regex(/^[a-z0-9-]{1,63}$/).optional() }));
     const api = await cloudflare(c.env);
     let status: 'active' | 'manual' = 'manual';

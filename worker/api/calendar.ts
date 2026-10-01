@@ -4,20 +4,40 @@
  * dates, document requests, grant deadlines and scheduled sends. The URL
  * holds a random token (only its hash is stored); revoking kills the URL.
  * Access is re-checked on every fetch, so losing access empties the feed.
+ *
+ * Staff feeds follow the staff rules (D-079). Making one needs the passkey the
+ * Owner requires and a recent step-up, because the URL outlives the session.
+ * Every fetch re-applies the passkey requirement and the staff IP allowlist.
  */
 import { localParts } from '@shared/rrule';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
-import { authOf, clientAccessFor, requireAuth } from '../auth/guards';
+import { authOf, clientAccessFor, requireAuth, requireStepUp } from '../auth/guards';
+import { passkeyGate } from '../auth/session';
 import type { AppBindings, AppEnv } from '../env';
 import { randomToken, sha256Hex } from '../lib/crypto';
-import { HttpError, parseJson, publicOrigin } from '../lib/http';
+import { clientIp, HttpError, parseJson, publicOrigin } from '../lib/http';
 import { newId } from '../lib/ids';
+import { securityPolicy, staffIpAllowed } from '../lib/security';
 import { getSetting } from '../lib/settings';
+
+/** Staff meet the passkey requirement here as on every staff API (D-029). Revoking a feed stays open to everyone. */
+const staffPasskeyGate: MiddlewareHandler<AppBindings> = async (c, next) => {
+  const auth = authOf(c);
+  if (auth.user.kind === 'staff' && auth.needsPasskey) return c.json({ error: 'passkey_enrollment_required' }, 403);
+  await next();
+};
+
+const stepUp = requireStepUp();
+/**
+ * A staff feed is a lasting URL to client names and deadlines that survives
+ * "sign out everywhere", so making one needs a step-up, like adding a passkey.
+ */
+const staffStepUp: MiddlewareHandler<AppBindings> = (c, next) => (authOf(c).user.kind === 'staff' ? stepUp(c, next) : next());
 
 export const calendarFeeds = new Hono<AppBindings>()
   .use('*', requireAuth)
-  .get('/', async (c) => {
+  .get('/', staffPasskeyGate, async (c) => {
     const rows = await c.env.DB.prepare(
       `SELECT f.id, f.client_id AS clientId, c.name AS clientName, f.label, f.created_at AS createdAt, f.last_used_at AS lastUsedAt
          FROM calendar_feeds f LEFT JOIN clients c ON c.id = f.client_id
@@ -27,7 +47,7 @@ export const calendarFeeds = new Hono<AppBindings>()
       .all();
     return c.json({ feeds: rows.results });
   })
-  .post('/', async (c) => {
+  .post('/', staffPasskeyGate, staffStepUp, async (c) => {
     const auth = authOf(c);
     const body = await parseJson(c, z.object({ clientId: z.string().max(40).nullable().optional() }));
     const clientId = body.clientId ?? null;
@@ -41,8 +61,10 @@ export const calendarFeeds = new Hono<AppBindings>()
     await c.env.DB.prepare('INSERT INTO calendar_feeds (id, token_hash, user_id, client_id, created_at) VALUES (?, ?, ?, ?, ?)')
       .bind(id, await sha256Hex(token), auth.user.id, clientId, Date.now())
       .run();
+    // With an IP allowlist, staff feeds only load from the allowed networks; the UI says so.
+    const ipRestricted = auth.user.kind === 'staff' && (await securityPolicy(c.env)).staffIpAllowlist.length > 0;
     // Shown once; only the hash is kept.
-    return c.json({ id, url: `${publicOrigin(c.req.raw)}/ics/${token}.ics` }, 201);
+    return c.json({ id, url: `${publicOrigin(c.req.raw)}/ics/${token}.ics`, ipRestricted }, 201);
   })
   .delete('/:id', async (c) => {
     const res = await c.env.DB.prepare('UPDATE calendar_feeds SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL')
@@ -168,10 +190,20 @@ export const ics = new Hono<AppBindings>().get('/:file', async (c) => {
     .first<{ id: string; client_id: string | null; last_used_at: number | null; user_id: string; kind: 'staff' | 'client'; role: string; all_clients: number; email: string; name: string | null; timezone: string | null }>();
   if (!feed) return c.json({ error: 'not_found' }, 404);
 
+  if (feed.kind === 'staff') {
+    // The staff rules apply to every fetch, as they do to a session (D-075, D-079).
+    // While an IP allowlist is set, calendar services that fetch from their own
+    // servers (Google Calendar, Outlook.com) can't load staff feeds.
+    const policy = await securityPolicy(c.env);
+    if (!staffIpAllowed(policy, clientIp(c.req.raw))) return c.json({ error: 'forbidden' }, 403);
+    if (await passkeyGate(c.env, policy, feed.user_id, 'staff')) return c.json({ error: 'passkey_enrollment_required' }, 403);
+  }
+
   // Re-check access now: a removed consultant or client user gets an empty calendar.
   const auth = {
     user: { id: feed.user_id, email: feed.email, name: feed.name, kind: feed.kind, role: feed.role as 'owner', allClients: Boolean(feed.all_clients) },
     session: { idHash: '', publicId: '', createdAt: 0, stepUpAt: null, absExpiresAt: 0 },
+    // Checked above for staff; client users never need one.
     needsPasskey: false,
   };
   let clientIds: string[];

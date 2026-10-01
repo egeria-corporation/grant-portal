@@ -7,14 +7,14 @@ import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simp
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { sendEmail } from '../email';
-import { signInEmail } from '../email/templates/auth';
+import { passkeyAddedEmail, signInEmail } from '../email/templates/auth';
 import { loadEmailBrand } from '../email/templates/brand';
-import type { AppBindings, AppEnv } from '../env';
+import type { AppBindings, AppEnv, AuthUser } from '../env';
 import { audit } from '../lib/audit';
-import { clientIp, HttpError, keyedHash, normalizeEmail, parseJson, publicOrigin, emailField } from '../lib/http';
+import { clientIp, HttpError, keyedHash, normalizeEmail, parseJson, publicOrigin, emailField, uaLabel } from '../lib/http';
 import { enforce, LIMITS } from '../lib/rate-limit';
 import { turnstileConfig, verifyTurnstile } from '../lib/turnstile';
-import { authOf, requireAuth, requireStaffAccount } from './guards';
+import { authOf, requireAuth, requireStaffAccount, requireStepUp } from './guards';
 import { securityPolicy, staffEmailAllowed } from '../lib/security';
 import { consumeCode, consumeLink, createLink, peekLink } from './magic';
 import {
@@ -53,6 +53,16 @@ async function sendSignInLink(env: AppEnv, to: string, origin: string, ipHash: s
     minutes: policy.linkMinutes,
   });
   await sendEmail(env, { to, template: 'magic_link', rendered, userId: user.id });
+}
+
+/** Tells the account a passkey was added, like the new-device email (D-079). */
+async function notifyPasskeyAdded(env: AppEnv, user: AuthUser, origin: string, device: string) {
+  const rendered = await passkeyAddedEmail(await loadEmailBrand(env, origin), {
+    device,
+    when: new Date().toUTCString(),
+    securityUrl: `${origin}/workspace/security`,
+  });
+  await sendEmail(env, { to: user.email, template: 'passkey_added', rendered, userId: user.id });
 }
 
 export const auth = new Hono<AppBindings>()
@@ -140,12 +150,15 @@ export const auth = new Hono<AppBindings>()
     return c.json(await startSession(c, user, 'passkey'));
   })
 
-  .post('/passkey/register/options', requireStaffAccount, async (c) => {
+  // Adding a passkey needs a recent step-up (D-079). A passkey outlives every
+  // session, "sign out everywhere" included, so a stolen session must not be
+  // able to plant one. Enrolling right after a sign-in is inside the window.
+  .post('/passkey/register/options', requireStaffAccount, requireStepUp(), async (c) => {
     const user = authOf(c).user;
     return c.json(await registrationOptions(c.env, relyingParty(c.req.raw, await firmName(c.env)), user));
   })
 
-  .post('/passkey/register/verify', requireStaffAccount, async (c) => {
+  .post('/passkey/register/verify', requireStaffAccount, requireStepUp(), async (c) => {
     const user = authOf(c).user;
     const body = await parseJson(
       c,
@@ -164,9 +177,13 @@ export const auth = new Hono<AppBindings>()
       body.response as unknown as RegistrationResponseJSON,
       body.label || null,
     );
-    // Adding a credential is a privilege change: rotate the session ID.
-    await rotateSession(c, { stepUp: true });
+    // Adding a credential is a privilege change: rotate the session ID. It is
+    // not a step-up: the ceremony proves control of the new authenticator,
+    // not of the account.
+    await rotateSession(c, { stepUp: false });
     await audit(c, { action: 'passkey.registered', target: out.id });
+    const env = c.env;
+    c.executionCtx.waitUntil(notifyPasskeyAdded(env, user, publicOrigin(c.req.raw), uaLabel(c.req.header('User-Agent'))).catch(() => undefined));
     return c.json(out, 201);
   })
 

@@ -500,3 +500,30 @@ Recovery from a lock-out is a documented D1 console statement (`docs/security.md
 
 ### New dependencies (M6)
 None.
+
+## Security review fixes
+
+### D-079 Step-up for new credentials and Owner integrations; staff rules on calendar feeds
+Found in a pre-release security review.
+
+**Adding a passkey needs a step-up and doesn't give one.**
+- A passkey outlives every session, "sign out everywhere" included. Before this, a stolen staff session older than 30 minutes could register the attacker's passkey, get a step-up from doing so, and then export data, delete clients or change the team, keeping the passkey afterwards.
+- Both registration calls now need a step-up within 30 minutes. Registration still rotates the session ID, but no longer stamps `step_up_at`: the ceremony proves control of the new authenticator, not of the account.
+- There's no exception for a first passkey during required enrollment (D-029). The enrollment screen follows a sign-in, which stamps a step-up. An exception would let a stale gated session, which can do nothing else, unlock full staff access. Someone who waits more than 30 minutes signs in again.
+- Every added passkey emails the account (`passkey_added`, sent like the new-device email). The email leaves out the passkey's label, because whoever added the passkey typed it.
+- "Sign out everywhere" doesn't remove passkeys or calendar feeds. The spec doesn't ask for it, and removing passkeys by age would be a guess. The email and `docs/security.md` say to remove an unknown passkey or feed on Account & security.
+
+**More actions need a step-up:**
+- inviting a consultant, which creates staff access like a role change;
+- saving or removing the Cloudflare token, and setting the custom domain, because the token can edit DNS and attach hostnames to the Worker.
+
+The wizard reaches these right after claiming, while the claim's step-up is fresh.
+
+**Staff calendar feeds follow the staff rules.**
+- Making one needs the passkey the Owner requires, as every staff API does. Listing feeds does too; revoking one never does.
+- Making one also needs a step-up, because the URL outlives the session, as a passkey does.
+- Requests from outside the IP allowlist were already treated as signed out, so feeds can't be made from there.
+- Every fetch re-applies the passkey requirement and the IP allowlist. Outside the list the answer is 403, not an empty calendar, because an empty feed would look like "no deadlines". The feed isn't revoked: like a session, it works again from an allowed network.
+- Trade-off: while an allowlist is set, calendar services that fetch from their own servers (Google Calendar, Outlook.com) can't load staff feeds. Apps that fetch from the device (Apple Calendar, Outlook desktop) work on an allowed network. Making a feed returns `ipRestricted`, and the page explains it.
+- Client users' feeds are unaffected (D-075).
+- Feeds don't expire, because a calendar subscription can't renew itself. The access re-check, the rules above, revocation, and removal or hard delete bound them instead.

@@ -1,7 +1,7 @@
 /**
  * Settings → Team (spec §5.9 "Team and roles"): staff, their role, whether a
  * consultant sees every client, passkey reset for a lost device, removal, and
- * consultant invites. Changes need a step-up.
+ * consultant invites. Changes and invites need a step-up.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
@@ -68,7 +68,7 @@ function InviteForm() {
         <label className="t-sm flex items-center gap-2">
           <input type="checkbox" checked={link} onChange={(e) => setLink(e.target.checked)} /> Give me a link to send myself instead of emailing
         </label>
-        {invite.isError ? <Notice tone="danger">{message(invite.error)}</Notice> : null}
+        {invite.isError ? needsStepUp(invite.error) ? <StepUp onDone={() => invite.mutate()} /> : <Notice tone="danger">{message(invite.error)}</Notice> : null}
         {invite.data?.link ? <CopyField label="Invite link" value={invite.data.link} /> : invite.data?.emailed ? <Notice tone="ok">Invite sent.</Notice> : null}
         <div>
           <Button type="submit" loading={invite.isPending}>
