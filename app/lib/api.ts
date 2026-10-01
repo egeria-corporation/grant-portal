@@ -68,7 +68,7 @@ const MESSAGES: Record<string, string> = {
   already_claimed: 'This portal has already been claimed. Sign in instead.',
   email_not_configured: 'Email is not set up on this deployment. Use the setup code from your Worker logs instead.',
   email_failed: "We couldn't send the email. Use the setup code from your Worker logs instead.",
-  setup_code_invalid: "That setup code didn't match. Codes are single-use; request a new one if needed.",
+  setup_code_invalid: "That setup code didn't match. Use the most recent “Portal setup code” in your Worker logs.",
   email_domain_unverified: 'Emailing others needs a verified sending domain. Copy the invite link instead.',
   invite_conflict: 'That email already belongs to a different kind of account.',
   already_member: 'That person is already on your team.',

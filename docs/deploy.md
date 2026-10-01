@@ -36,7 +36,7 @@ Run on a Cloudflare account that has **no** existing `grant-portal-*` resources,
    - [ ] you land on **Claim this portal**; no product name in the tab title or page;
    - [ ] DevTools → Network → document response has a `Content-Security-Policy` header with a `nonce-…` and no console CSP errors;
    - [ ] enter the email you used to sign up to Resend → **Email me a setup link**. The email comes from `onboarding@resend.dev` (see "First-run wizard" below). Open the link → **Continue**;
-   - [ ] if no email arrives: **Use the setup code instead**. Dashboard → Workers & Pages → your Worker → **Logs** → find `Portal setup code: XXXX-XXXX-XXXX`;
+   - [ ] if no email arrives: **Use the setup code instead**. Dashboard → Workers & Pages → your Worker → **Logs** → find the most recent `Portal setup code: XXXX-XXXX-XXXX`;
    - [ ] finish Brand; skip the optional steps; **Load a demo client**; **Your portal is live** → **Go to your workspace**.
 9. Dashboard → Workers → your worker → Settings:
    - [ ] bindings DB, FILES, KV, JOBS, ASSETS present; cron triggers listed; queue consumer attached.

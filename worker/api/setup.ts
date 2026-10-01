@@ -3,14 +3,16 @@
  *
  * Two ways to prove you own the deployment:
  *  1. Email: a setup link + code sent from Resend's shared test sender, which
- *     only delivers to the Resend account owner (DECISIONS D-019).
+ *     only delivers to the Resend account owner (DECISIONS D-019). The link is
+ *     stored only once Resend has accepted the email.
  *  2. Setup code: printed to the Worker logs, for when email fails.
- * The first claimant to finish wins; everything here 409s once claimed.
+ * The first claimant to finish wins; everything here 409s once claimed. Both
+ * ways have portal-wide limits in D1 on top of the per-IP ones.
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { authOf, requireOwner } from '../auth/guards';
-import { createLink, SIGNIN_TTL_MS } from '../auth/magic';
+import { prepareLink, SIGNIN_TTL_MS } from '../auth/magic';
 import { claimPortal, startSession } from '../auth/signin';
 import { emailConfigured, RESEND_TEST_SENDER, sendEmail } from '../email';
 import { EmailNotConfiguredError } from '../email/provider';
@@ -22,10 +24,9 @@ import { audit } from '../lib/audit';
 import { randomBytes, sha256Hex, timingSafeEqual, toHex } from '../lib/crypto';
 import { clientIp, HttpError, normalizeEmail, parseJson, publicOrigin, emailField } from '../lib/http';
 import { DEFAULT_ORG_ID } from '../db/schema';
-import { enforce, LIMITS } from '../lib/rate-limit';
+import { enforce, enforceGlobal, GLOBAL_LIMITS, LIMITS } from '../lib/rate-limit';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 
-export const SETUP_CODE_MAX_ATTEMPTS = 10;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 export const WIZARD_STEPS = ['brand', 'email', 'domain', 'opengrants', 'team', 'client'] as const;
@@ -48,7 +49,7 @@ async function isClaimed(env: AppEnv): Promise<boolean> {
 export async function issueSetupCode(env: AppEnv, replace: boolean): Promise<void> {
   const code = newSetupCode();
   const salt = toHex(randomBytes(16));
-  const value = JSON.stringify({ hash: await sha256Hex(normalizeSetupCode(code) + salt), salt, attempts: 0, createdAt: Date.now() });
+  const value = JSON.stringify({ hash: await sha256Hex(normalizeSetupCode(code) + salt), salt, createdAt: Date.now() });
   const res = await env.DB.prepare(
     `INSERT INTO settings (org_id, key, value_json, updated_at) VALUES (?, 'setup_code', ?, ?)
      ON CONFLICT (org_id, key) DO ${replace ? 'UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at' : 'NOTHING'}`,
@@ -61,20 +62,16 @@ export async function issueSetupCode(env: AppEnv, replace: boolean): Promise<voi
   }
 }
 
-/** Counts an attempt atomically, then compares. Too many failures burn the code. */
+/**
+ * Wrong guesses don't burn the code; that let anyone destroy the code the Owner
+ * was copying from the logs. Guessing is bounded instead by the portal-wide
+ * `setupCodeAttempt` budget, which the caller spends first and which keeps 60
+ * bits far out of reach (DECISIONS D-019).
+ */
 async function checkSetupCode(env: AppEnv, code: string): Promise<boolean> {
-  const row = await env.DB.prepare(
-    `UPDATE settings SET value_json = json_set(value_json, '$.attempts', json_extract(value_json, '$.attempts') + 1)
-      WHERE org_id = ? AND key = 'setup_code' AND json_extract(value_json, '$.attempts') < ?
-      RETURNING value_json`,
-  )
-    .bind(DEFAULT_ORG_ID, SETUP_CODE_MAX_ATTEMPTS)
-    .first<{ value_json: string }>();
-  if (!row) return false;
-  const stored = JSON.parse(row.value_json) as { hash: string; salt: string; attempts: number };
-  const ok = timingSafeEqual(await sha256Hex(normalizeSetupCode(code) + stored.salt), stored.hash);
-  if (!ok && stored.attempts >= SETUP_CODE_MAX_ATTEMPTS) await deleteSetting(env, 'setup_code');
-  return ok;
+  const stored = await getSetting(env, 'setup_code');
+  if (!stored) return false;
+  return timingSafeEqual(await sha256Hex(normalizeSetupCode(code) + stored.salt), stored.hash);
 }
 
 export const setup = new Hono<AppBindings>()
@@ -93,8 +90,14 @@ export const setup = new Hono<AppBindings>()
     await enforce(c, LIMITS.setupPerIp, clientIp(c.req.raw));
     if (await isClaimed(c.env)) throw new HttpError(409, 'already_claimed');
     const body = await parseJson(c, z.object({ email: emailField }));
+    if (!emailConfigured(c.env)) throw new HttpError(503, 'email_not_configured');
+    await enforceGlobal(c.env, GLOBAL_LIMITS.setupEmail);
     const to = normalizeEmail(body.email);
-    const link = await createLink(c.env, { email: to, purpose: 'setup', ttlMs: SIGNIN_TTL_MS, withCode: true, supersede: true });
+    // Nothing is stored until Resend accepts the email. It delivers the shared
+    // test sender's mail only to the account owner, so for any other address
+    // the send fails and no link or code exists to guess. Committing retires
+    // every other setup link, so only one is ever live.
+    const link = await prepareLink(c.env, { email: to, purpose: 'setup', ttlMs: SIGNIN_TTL_MS, withCode: true, supersede: 'all' });
     const rendered = await setupEmail(emailBrand({ firm: 'Your client portal', theme: DEFAULT_THEME, origin: null, logoPath: null }), {
       link: `${publicOrigin(c.req.raw)}/auth/verify?t=${link.token}`,
       code: link.code ?? '',
@@ -106,13 +109,19 @@ export const setup = new Hono<AppBindings>()
       if (err instanceof EmailNotConfiguredError) throw new HttpError(503, 'email_not_configured');
       throw new HttpError(503, 'email_failed');
     }
+    await link.commit();
     return c.json({ sent: true });
   })
 
-  /** Prints a fresh setup code to the logs (the old one stops working). */
+  /**
+   * Prints a fresh setup code to the logs (the old one stops working). Anyone
+   * can ask, so only a few times an hour portal-wide: nobody can keep
+   * invalidating the code the Owner is copying.
+   */
   .post('/setup-code', async (c) => {
     await enforce(c, LIMITS.setupPerIp, clientIp(c.req.raw));
     if (await isClaimed(c.env)) throw new HttpError(409, 'already_claimed');
+    await enforceGlobal(c.env, GLOBAL_LIMITS.setupCodeReissue);
     await issueSetupCode(c.env, true);
     return c.json({ ok: true });
   })
@@ -124,6 +133,7 @@ export const setup = new Hono<AppBindings>()
       c,
       z.object({ email: emailField, name: z.string().trim().max(80).optional(), setupCode: z.string().max(32) }),
     );
+    await enforceGlobal(c.env, GLOBAL_LIMITS.setupCodeAttempt);
     if (!(await checkSetupCode(c.env, body.setupCode))) {
       await audit(c, { actor: null, action: 'setup.code_failed' });
       throw new HttpError(400, 'setup_code_invalid');

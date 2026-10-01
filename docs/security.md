@@ -10,7 +10,7 @@ How the portal protects consultants and their clients. The spec (`docs/SPEC.md` 
 - Opening the link only shows a confirmation page. Signing in takes a POST from the **Continue** button, so email security scanners (Safe Links, Mimecast, Proofpoint) can't use up the link.
 - Codes allow 5 attempts per request, then the request (link included) is dead. Requesting a new email cancels older ones.
 - Responses and timing are identical for known and unknown addresses. Unknown addresses get no email and leave no trace.
-- Rate limits: 5 requests/hour per email, 20/hour per IP, plus Turnstile once configured.
+- Rate limits: 5 requests/hour per email, 20/hour per IP (an IPv6 /64 counts as one IP), plus Turnstile once configured.
 
 **Passkeys (staff).** Owners and consultants can add a passkey (Face ID, Touch ID, Windows Hello, a security key). User verification is required, so a passkey is a strong factor on its own. The Owner can require passkeys for all staff (Security page).
 
@@ -30,8 +30,8 @@ How the portal protects consultants and their clients. The spec (`docs/SPEC.md` 
 
 The first person to finish step 1 of the wizard becomes the Owner, and the step then locks. A fresh `*.workers.dev` URL could be found by someone else, so claiming needs one of:
 
-- **Email to the Resend account owner.** The setup email is always sent from Resend's shared test sender, which only delivers to the address that owns the Resend account. The person who pasted the API key receives it; nobody else can.
-- **The setup code** printed in the Worker's logs (Workers & Pages → your Worker → Logs). Only people with access to your Cloudflare account can read those. The code is single-use and is burned after 10 wrong attempts; **Print a new setup code** issues another.
+- **Email to the Resend account owner.** The setup email is always sent from Resend's shared test sender, which only delivers to the address that owns the Resend account. The person who pasted the API key receives it; nobody else can. The link and code only start working once Resend has accepted the email, so asking for a setup email to any other address gives nothing to guess. Only the latest setup link works, and at most 10 setup emails go out per hour.
+- **The setup code** printed in the Worker's logs (Workers & Pages → your Worker → Logs). Only people with access to your Cloudflare account can read those. The code is single-use. Wrong guesses don't use it up; instead the whole portal gets 100 guesses an hour, which keeps a 60-bit code out of reach. **Print a new setup code** issues another (at most 3 times an hour); use the most recent one in the logs.
 
 ## Web baseline
 
@@ -133,7 +133,8 @@ We reviewed the v0.1 code as an attacker would, against the threat model in spec
 |---|---|---|
 | **Leaked or forwarded magic link** | 15-minute (configurable 5–60) single-use hashed tokens, consumed only by POST from the confirmation page. The session list with revoke, and a new-device email. | `magic-link.test.ts`, `sessions.test.ts` |
 | **Email enumeration** | Identical 202 answers; the email is sent after the response. Staff outside the allowed domains are treated like unknown addresses. | `magic-link.test.ts`, `admin.test.ts` |
-| **Brute-forcing the code** | 5 attempts per code, enforced atomically in D1. Per-IP and per-email rate limits. Optional Turnstile. | `magic-link.test.ts` |
+| **Brute-forcing the code** | 5 attempts per code, enforced atomically in D1. Per-IP (IPv6: per /64) and per-email rate limits. Optional Turnstile. | `magic-link.test.ts` |
+| **Claiming someone else's fresh deployment** | The setup link exists only once Resend has delivered it to the account owner, and only one is live. Portal-wide caps in D1 on setup emails, setup-code guesses and reissued codes. | `setup.test.ts` |
 | **Cross-client access (IDOR)** | Client scoping in middleware on every route. Every route is listed in a generated test that calls it as each kind of actor, and calls nested routes with another client's IDs in both the path and the body. | `authz.test.ts` (every route) |
 | **Malicious upload** | Type checked by first bytes against an allowlist; HTML and SVG never accepted. Downloads as attachments, with no-sniff, a `default-src 'none'` CSP, and an optional scanner quarantine. | `files.test.ts`, `headers.test.ts` |
 | **Stolen staff session** | Configurable idle and absolute expiry, optional passkey requirement, and the IP allowlist. Step-up for sensitive actions. Revoke everywhere. | `sessions.test.ts`, `admin.test.ts` |
@@ -153,7 +154,8 @@ Findings fixed during the review:
 ## Known limitations
 
 - **Copy-link invites** (used before your sending domain is verified) sign in whoever opens them. Share them over a channel you trust. They are single-use and expire after 72 hours. They're only issued for people who don't have an account yet; existing users are added directly or emailed.
-- **Rate limits are best-effort.** KV has no atomic counter, so a burst of simultaneous requests can slightly exceed a limit. The hard limits (single-use tokens, 5 code attempts, 10 setup-code attempts) are enforced atomically in D1.
+- **Rate limits are best-effort.** KV has no atomic counter, so a burst of simultaneous requests can slightly exceed a limit. The hard limits (single-use tokens, 5 code attempts, and the portal-wide claim budgets) are enforced atomically in D1.
+- **Someone can slow down your claim.** Before the portal is claimed, anyone who finds the URL can spend the hourly claim budgets. That can delay claiming by up to an hour, or send you to the other method (setup email or setup code), but can't make them the Owner.
 - **Turnstile is off** until you add keys (Settings → Security). Rate limits apply either way.
 - **New session lengths apply at the next sign-in.** Existing sessions keep the expiry they started with. To end them sooner, use "Sign out everywhere", or remove and re-add the person.
 - **The IP allowlist trusts Cloudflare's `CF-Connecting-IP`.** It protects the portal's own hostnames, which always run behind Cloudflare. It isn't a network firewall: sign-in emails are still sent, but the resulting session is refused.

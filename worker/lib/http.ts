@@ -2,6 +2,7 @@
 import type { Context } from 'hono';
 import { z } from 'zod';
 import type { AppBindings } from '../env';
+import { parseIp } from './cidr';
 import { getSecret } from './secrets';
 import { hmacSha256Hex } from './crypto';
 
@@ -19,6 +20,19 @@ export class HttpError extends Error {
 /** Cloudflare sets CF-Connecting-IP at the edge; tests and local dev may not. */
 export function clientIp(req: Request): string {
   return req.headers.get('CF-Connecting-IP') ?? '0.0.0.0';
+}
+
+/**
+ * Who a per-IP rate limit counts: the address for IPv4, the /64 for IPv6. One
+ * IPv6 host usually holds a whole /64, so counting single addresses would let it
+ * rotate past every limit. Only for rate limits; the IP allowlist and the audit
+ * log keep using the exact `clientIp`.
+ */
+export function rateLimitIp(ip: string): string {
+  const p = parseIp(ip);
+  if (!p) return ip;
+  if (p.v === 4) return [24n, 16n, 8n, 0n].map((shift) => (p.n >> shift) & 255n).join('.');
+  return `${(p.n >> 64n).toString(16)}::/64`;
 }
 
 /**

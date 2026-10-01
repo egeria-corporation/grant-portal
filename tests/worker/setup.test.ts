@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { issueSetupCode, SETUP_CODE_MAX_ATTEMPTS } from '../../worker/api/setup';
+import { issueSetupCode } from '../../worker/api/setup';
 import { createLink } from '../../worker/auth/magic';
 import { memoryOutbox } from '../../worker/email/outbox';
+import type { AppEnv } from '../../worker/env';
+import { GLOBAL_LIMITS } from '../../worker/lib/rate-limit';
 import { Agent, agentFor, codeFrom, lastEmailTo, resetDb, testEnv, tokenFrom } from './helpers';
 
 beforeEach(resetDb);
@@ -17,6 +19,32 @@ async function logSetupCode(): Promise<string> {
   if (!code) throw new Error('no setup code logged');
   return code;
 }
+
+/**
+ * A production env whose Resend account refuses the send, as Resend does for
+ * the shared test sender and any address but the account owner's. Returns the
+ * refused messages, code and link included.
+ */
+function resendRefuses() {
+  const refused: { to: string[]; text: string }[] = [];
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    if (String(input) !== 'https://api.resend.com/emails') throw new Error(`unexpected fetch ${String(input)}`);
+    refused.push(JSON.parse(String(init?.body)) as { to: string[]; text: string });
+    return Response.json(
+      { statusCode: 403, name: 'validation_error', message: 'You can only send testing emails to your own email address.' },
+      { status: 403 },
+    );
+  });
+  return { env: { ...testEnv, APP_ENV: 'production', RESEND_API_KEY: 're_test_key' } as AppEnv, refused };
+}
+
+async function liveSetupLinks(): Promise<number> {
+  const row = await testEnv.DB.prepare("SELECT COUNT(*) AS n FROM magic_links WHERE purpose = 'setup' AND used_at IS NULL").first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** A client alone in its own IPv6 /64. */
+const v6Agent = (i: number) => new Agent({ ip: `2001:db8:${i.toString(16)}::1` });
 
 describe('claim by email', () => {
   it('sends the setup email from the shared test sender, and the link makes the Owner', async () => {
@@ -58,6 +86,55 @@ describe('claim by email', () => {
   });
 });
 
+describe('claim by email: nothing to guess unless the email is delivered', () => {
+  it('a send Resend refuses leaves no link or code, even for someone holding both', async () => {
+    const { env, refused } = resendRefuses();
+    const attacker = new Agent();
+    const res = await attacker.post('/api/setup/claim', { email: 'attacker@evil.example' }, { env });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'email_failed' });
+    expect(await liveSetupLinks()).toBe(0);
+
+    // The refused request carried the code and the link. Neither works: nothing was stored.
+    const text = refused[0]?.text ?? '';
+    const verify = await attacker.post('/auth/code/verify', { email: 'attacker@evil.example', code: codeFrom(text), purpose: 'setup' });
+    expect(verify.status).toBe(400);
+    expect((await attacker.post('/auth/link/consume', { token: tokenFrom(text) })).status).toBe(410);
+    expect(await (await attacker.fetch('/api/setup/status')).json()).toMatchObject({ status: 'unclaimed' });
+  });
+
+  it('only the latest setup link is live, whoever it was for', async () => {
+    await new Agent().post('/api/setup/claim', { email: 'first@firm.org' });
+    await new Agent().post('/api/setup/claim', { email: 'second@firm.org' });
+    const first = lastEmailTo('first@firm.org')?.text ?? '';
+    expect((await new Agent().post('/auth/link/consume', { token: tokenFrom(first) })).status).toBe(410);
+    expect((await new Agent().post('/auth/code/verify', { email: 'first@firm.org', code: codeFrom(first), purpose: 'setup' })).status).toBe(400);
+    expect(await liveSetupLinks()).toBe(1);
+    const second = lastEmailTo('second@firm.org')?.text ?? '';
+    expect((await new Agent().post('/auth/link/consume', { token: tokenFrom(second) })).status).toBe(200);
+  });
+
+  it(`sends at most ${GLOBAL_LIMITS.setupEmail.limit} setup emails an hour portal-wide, however many IPs ask at once`, async () => {
+    const { limit } = GLOBAL_LIMITS.setupEmail;
+    const results = await Promise.all(
+      Array.from({ length: limit + 5 }, (_, i) => v6Agent(i).post('/api/setup/claim', { email: `rival${i}@firm.org` })),
+    );
+    expect(results.filter((r) => r.status === 200)).toHaveLength(limit);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(5);
+    expect(memoryOutbox).toHaveLength(limit);
+    expect(await liveSetupLinks()).toBe(1);
+  });
+
+  it('refused sends count toward the portal-wide cap too', async () => {
+    const { env } = resendRefuses();
+    const { limit } = GLOBAL_LIMITS.setupEmail;
+    for (let i = 0; i < limit; i++) {
+      expect((await v6Agent(i).post('/api/setup/claim', { email: `x${i}@evil.example` }, { env })).status).toBe(503);
+    }
+    expect((await v6Agent(limit).post('/api/setup/claim', { email: 'y@evil.example' }, { env })).status).toBe(429);
+  });
+});
+
 describe('claim by setup code (logs)', () => {
   it('works once with the logged code and then locks', async () => {
     const code = await logSetupCode();
@@ -71,13 +148,52 @@ describe('claim by setup code (logs)', () => {
     expect(memoryOutbox).toHaveLength(0);
   });
 
-  it(`burns the code after ${SETUP_CODE_MAX_ATTEMPTS} wrong attempts`, async () => {
+  it('wrong guesses never burn the code the Owner is copying from the logs', async () => {
     const code = await logSetupCode();
-    for (let i = 0; i < SETUP_CODE_MAX_ATTEMPTS; i++) {
-      await new Agent().post('/api/setup/claim-with-code', { email: 'b@firm.org', setupCode: 'AAAA-AAAA-AAAA' });
+    for (let i = 0; i < 25; i++) {
+      const res = await v6Agent(i).post('/api/setup/claim-with-code', { email: 'b@firm.org', setupCode: 'AAAA-AAAA-AAAA' });
+      expect(res.status).toBe(400);
     }
-    const res = await new Agent().post('/api/setup/claim-with-code', { email: 'b@firm.org', setupCode: code });
-    expect(res.status).toBe(400);
+    const res = await new Agent().post('/api/setup/claim-with-code', { email: 'owner@firm.org', setupCode: code });
+    expect(res.status).toBe(200);
+  });
+
+  it(`allows ${GLOBAL_LIMITS.setupCodeAttempt.limit} guesses an hour portal-wide, even all at once from different IPs`, async () => {
+    const code = await logSetupCode();
+    const { limit } = GLOBAL_LIMITS.setupCodeAttempt;
+    const guesses = await Promise.all(
+      Array.from({ length: limit + 10 }, (_, i) =>
+        v6Agent(i).post('/api/setup/claim-with-code', { email: 'b@firm.org', setupCode: 'AAAA-AAAA-AAAA' }),
+      ),
+    );
+    expect(guesses.filter((r) => r.status === 400)).toHaveLength(limit);
+    expect(guesses.filter((r) => r.status === 429)).toHaveLength(10);
+    // The budget is spent for this hour, right code included. The code itself survives.
+    const owner = new Agent();
+    expect((await owner.post('/api/setup/claim-with-code', { email: 'owner@firm.org', setupCode: code })).status).toBe(429);
+    const nextHour = Date.now() + 3600_000;
+    vi.spyOn(Date, 'now').mockReturnValue(nextHour);
+    expect((await owner.post('/api/setup/claim-with-code', { email: 'owner@firm.org', setupCode: code })).status).toBe(200);
+  });
+
+  it(`prints a new code at most ${GLOBAL_LIMITS.setupCodeReissue.limit} times an hour, so the latest one stays valid`, async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const { limit } = GLOBAL_LIMITS.setupCodeReissue;
+    for (let i = 0; i < limit; i++) expect((await v6Agent(i).post('/api/setup/setup-code')).status).toBe(200);
+    expect((await v6Agent(limit).post('/api/setup/setup-code')).status).toBe(429);
+    const printed = spy.mock.calls.map((c) => /code: ([0-9A-Z-]+)/.exec(String(c[0]))?.[1]).filter((c) => c !== undefined);
+    spy.mockRestore();
+    expect(printed).toHaveLength(limit);
+    const res = await new Agent().post('/api/setup/claim-with-code', { email: 'owner@firm.org', setupCode: printed.at(-1) });
+    expect(res.status).toBe(200);
+  });
+
+  it('counts IPv6 clients per /64, so rotating addresses inside one does not help', async () => {
+    const guess = (ip: string) => new Agent({ ip }).post('/api/setup/claim-with-code', { email: 'b@firm.org', setupCode: 'AAAA-AAAA-AAAA' });
+    await logSetupCode();
+    for (let i = 1; i <= 10; i++) expect((await guess(`2001:db8:7:7::${i.toString(16)}`)).status).toBe(400);
+    expect((await guess('2001:db8:7:7:ffff:ffff:ffff:ffff')).status).toBe(429);
+    expect((await guess('2001:db8:7:8::1')).status).toBe(400);
   });
 
   it('never logs a code once the portal is claimed', async () => {

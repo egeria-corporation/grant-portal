@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { rateLimitIp } from '../../worker/lib/http';
 import { call } from './helpers';
 
 describe('/healthz', () => {
@@ -87,5 +88,16 @@ describe('routing', () => {
     const res = await call('/api/system/secrets');
     expect(res.status).toBe(401);
     expect(await res.text()).not.toMatch(/SESSION_SECRET|DATA_ENCRYPTION_KEY/);
+  });
+});
+
+describe('rate-limit subjects', () => {
+  it('counts IPv4 per address and IPv6 per /64', () => {
+    expect(rateLimitIp('203.0.113.9')).toBe('203.0.113.9');
+    expect(rateLimitIp('::ffff:203.0.113.9')).toBe('203.0.113.9');
+    expect(rateLimitIp('2001:db8:1:2:3:4:5:6')).toBe('20010db800010002::/64');
+    expect(rateLimitIp('2001:db8:1:2::ffff')).toBe(rateLimitIp('2001:0DB8:0001:0002:aaaa::1'));
+    expect(rateLimitIp('2001:db8:1:3::1')).not.toBe(rateLimitIp('2001:db8:1:2::1'));
+    expect(rateLimitIp('not-an-ip')).toBe('not-an-ip');
   });
 });
